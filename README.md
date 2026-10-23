@@ -18,6 +18,39 @@ API FastAPI que lista filmes do Tom Hanks (dados sempre ao vivo da TMDB, nunca p
 
 **Atividade extra — Observabilidade:** cada serviço agora diz como está de saúde, sem ninguém abrir um terminal. `/health` com readiness de verdade (testa MySQL, Redis, Garage e devolve `503` quando uma dependência crítica cai), `HEALTHCHECK` do Docker em todos os containers, `/metrics` pro Prometheus e um painel no Grafana (bônus). Veja a seção [Observabilidade](#observabilidade-health-checks-e-métricas-atividade-extra).
 
+**Atividade 8 — SaaS, PaaS, IaaS e documentação reversa:** nenhuma linha de código nova. O sistema foi documentado do zero, como se tivesse sido herdado de outra pessoa: especificação, arquitetura, regras de negócio (extraídas do código, com o arquivo de cada uma) e modelo de dados ficam em **[DOCUMENTACAO.md](DOCUMENTACAO.md)**. Aqui no README fica a classificação de cada peça do projeto nas camadas de nuvem: seção [Camadas de nuvem](#camadas-de-nuvem-saas-paas-e-iaas-atividade-8).
+
+## Camadas de nuvem: SaaS, PaaS e IaaS (atividade 8)
+
+As três siglas dizem quanto da pilha eu administro e quanto o provedor administra por mim. O projeto usa as três ao mesmo tempo:
+
+```
+SaaS   Stripe · Mailtrap/Brevo · TMDB · GitHub · GHCR · Cloudflare      só consumo, não hospedo nada
+PaaS   catálogo · auth-service · log-service · Redis · Garage           entrego imagem, o Docker/Portainer roda
+       MySQL da disciplina · GitHub Actions
+IaaS   VM do servidor da disciplina (Proxmox, Linux + Docker)           máquina, disco e rede
+```
+
+| Peça | Camada | Por quê |
+|---|---|---|
+| VM do servidor da disciplina (Proxmox) | **IaaS** | É a base de tudo: máquina virtual, disco e rede. Sistema operacional, Docker e Portainer são instalados e mantidos por quem administra a VM, não pelo provedor do hardware. |
+| Catálogo (`api`) | **PaaS** | Eu entrego só a imagem (`ghcr.io/.../api-filmes:sha-...`); o Docker na VM, gerenciado pelo Portainer, cuida de rodar, reiniciar (`restart: unless-stopped`) e conferir a saúde (`HEALTHCHECK`). Não instalo SO pra subir uma versão nova. |
+| `auth-service` | **PaaS** | Mesmo modelo do catálogo: imagem própria, implantada pela stack do Portainer a partir do repositório (GitOps). |
+| `log-service` | **PaaS** | Idem: só a imagem é minha; runtime, rede interna e reinício são da plataforma. |
+| Redis | **PaaS** (auto-hospedado) | Uso a imagem oficial `redis:7-alpine` como serviço pronto, só configuro. Numa nuvem pública seria um Redis gerenciado (ElastiCache, Memorystore). |
+| Garage (no lugar do MinIO) | **PaaS** (auto-hospedado) | Object storage com API S3, rodando como container na mesma plataforma. O código fala S3 puro (`boto3`); trocar por um S3 gerenciado seria só configuração. |
+| MySQL remoto | **PaaS** (banco como serviço) | A disciplina provisiona a instância e me entrega uma `DATABASE_URL`. Eu crio as tabelas (Alembic), mas não administro servidor, SO nem backup. |
+| GitHub Actions | **PaaS** | Eu entrego o workflow (`.github/workflows/ci.yml`); o GitHub fornece e descarta a máquina que roda testes, build e smoke test. |
+| Stripe | **SaaS** | Pagamento pronto: página de checkout, cobrança recorrente e webhook. O cartão nem passa pelo meu backend. Só uso a API e o painel. |
+| Mailtrap (dev) / Brevo (prod) | **SaaS** | Provedor de e-mail transacional: o `auth-service` só abre uma conexão SMTP e manda a mensagem do "esqueci minha senha". Entrega e reputação do remetente são deles. |
+| API da TMDB | **SaaS** | Todos os dados de filmes (lista, elenco, onde assistir, pôsteres) vêm ao vivo de lá; o sistema não guarda nenhum. |
+| GitHub (repositório) e GHCR (registro de imagens) | **SaaS** | Uso o produto pronto pra guardar código e imagens; não hospedo Git nem registry. |
+| Cloudflare (domínio `*.lapps.studio`) | **SaaS** | HTTPS e proxy na frente do servidor da disciplina, configurado pela infraestrutura do curso. Eu só recebo o domínio. |
+
+Prometheus e Grafana só rodam no `docker-compose.yml` local (observabilidade), fora da produção; se subissem, seriam PaaS auto-hospedado como o Redis.
+
+A divisão não é rígida: o mesmo container é "PaaS" pra mim porque alguém já cuidou da VM e do Docker. Se eu tivesse que criar a VM, instalar o Linux e o Docker, a camada de baixo seria trabalho meu, e o projeto inteiro desceria um nível. Detalhes de cada serviço e de como eles se conectam: [DOCUMENTACAO.md → Arquitetura](DOCUMENTACAO.md#2-arquitetura).
+
 ## Stack
 - **Backend:** FastAPI + SQLAlchemy + Alembic (catálogo e `auth-service`, cada um com sua própria migration history)
 - **Banco:** MySQL (driver `pymysql`) — a mesma instância remota, compartilhada entre os dois serviços
