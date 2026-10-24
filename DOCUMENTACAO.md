@@ -1,6 +1,6 @@
 # Documentação reversa — Catálogo de Filmes do Tom Hanks
 
-> Atividade 8 (ISW055), proposta pelo professor [@siriani](https://github.com/siriani). Voltar pro [README](README.md).
+> Atividade 8 (ISW055), proposta pelo professor [@siriani](https://github.com/siriani). Voltar pro [README técnico herdado](docs/README-catalogo-filmes.md).
 
 Este documento foi escrito como se o sistema tivesse acabado de ser herdado de outra pessoa: nenhuma linha de código nova, só leitura do que já existe. Toda regra listada aqui aponta pro arquivo de onde foi tirada. Onde o código faz algo diferente do que se esperaria (ou diferente do que o README diz), isso está registrado na seção [Achados da leitura](#5-achados-da-leitura).
 
@@ -137,7 +137,7 @@ Prometheus e Grafana existem só no `docker-compose.yml` local (observabilidade)
 
 ### 2.4 Deploy
 
-`git push` na `main` → GitHub Actions roda os testes, builda as 4 imagens e sobe a stack inteira num smoke test → publica no GHCR com a tag `sha-xxxxxxx` → um commit automático atualiza as tags do `docker-compose.portainer.yml` → o Portainer percebe a mudança no repositório (GitOps) e recria os containers. Detalhes no [README](README.md#cicd-github-actions-atividade-extra).
+`git push` na `main` → GitHub Actions roda os testes, builda as 4 imagens e sobe a stack inteira num smoke test → publica no GHCR com a tag `sha-xxxxxxx` → um commit automático atualiza as tags do `docker-compose.portainer.yml` → o Portainer percebe a mudança no repositório (GitOps) e recria os containers. Detalhes no [README](docs/README-catalogo-filmes.md#cicd-github-actions-atividade-extra).
 
 ---
 
@@ -172,7 +172,7 @@ Os papéis formam uma escada — cada um inclui os anteriores: `cinefilo` (1) < 
 | R4 | Se uma ação é negada por papel ou por dono (403), é registrado o evento `acesso_negado:<papel>` ou `acesso_negado:perfil:<id>`. | `app/auth/dependencies.py`, `app/routers/profiles.py` |
 | R5 | O papel vem **só** do claim `role` do JWT, nunca do corpo ou dos parâmetros da requisição. | `app/auth/dependencies.py` |
 | R6 | Se um admin troca o papel de alguém pra um valor fora de `cinefilo`, `nerd`, `stalker_do_tomhanks`, `admin`, recebe `400`; se o usuário não existe, `404`. | `auth-service/app/routers/admin.py` |
-| R7 | Ninguém nasce admin: o primeiro admin é promovido direto no banco (`UPDATE usuarios SET role='admin'`). Não existe endpoint pra isso. | `README.md`, `auth-service/app/routers/auth.py` |
+| R7 | Ninguém nasce admin: o primeiro admin é promovido direto no banco (`UPDATE usuarios SET role='admin'`). Não existe endpoint pra isso. | `docs/README-catalogo-filmes.md`, `auth-service/app/routers/auth.py` |
 | R8 | Os guards do Angular só escondem telas (quiz, admin). A permissão de verdade é sempre o `403` da API. | `frontend/src/app/core/guards/role.guard.ts` |
 
 ### 3.3 Planos pagos (Stripe)
