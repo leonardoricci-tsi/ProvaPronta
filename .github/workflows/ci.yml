@@ -168,16 +168,16 @@ jobs:
         include:
           - servico: api
             contexto: .
-            imagem: api-filmes
+            imagem: provapronta
           - servico: auth-service
             contexto: ./auth-service
-            imagem: api-filmes-auth
+            imagem: provapronta-auth
           - servico: log-service
             contexto: ./log-service
-            imagem: api-filmes-log
+            imagem: provapronta-log
           - servico: garage
             contexto: ./garage
-            imagem: api-filmes-garage
+            imagem: provapronta-garage
     steps:
       - uses: actions/checkout@v4
       - uses: docker/setup-buildx-action@v3
@@ -232,7 +232,7 @@ jobs:
       - name: Apontar o compose de produção pra tag deste commit
         run: |
           TAG="sha-${GITHUB_SHA::7}"
-          sed -E -i "s#(image: ghcr\.io/${GITHUB_REPOSITORY_OWNER}/api-filmes[a-z-]*):.*#\1:${TAG}#" docker-compose.portainer.yml
+          sed -E -i "s#(image: ghcr\.io/${GITHUB_REPOSITORY_OWNER}/provapronta[a-z-]*):.*#\1:${TAG}#" docker-compose.portainer.yml
           grep -n "image: ghcr.io" docker-compose.portainer.yml
           echo "TAG=$TAG" >> "$GITHUB_ENV"
 
