@@ -25,9 +25,9 @@ export interface UsuarioLogado {
 // mostrar na tela — quem garante permissão de verdade é sempre o backend
 // (403 mesmo chamando o endpoint direto), isso aqui é só UX.
 const NIVEL_PAPEL: Record<string, number> = {
-  cinefilo: 1,
-  nerd: 2,
-  stalker_do_tomhanks: 3,
+  professor: 1,
+  professor_pro: 2,
+  coordenador: 3,
   admin: 4,
 };
 

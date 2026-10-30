@@ -35,7 +35,7 @@ def assinar(corpo: bytes, segredo: str = SEGREDO, timestamp: int | None = None) 
     return f"t={timestamp},v1={mac.hexdigest()}"
 
 
-def evento_checkout(usuario_id: int = 42, plano: str = "nerd", subscription: str = "sub_test_1") -> bytes:
+def evento_checkout(usuario_id: int = 42, plano: str = "professor_pro", subscription: str = "sub_test_1") -> bytes:
     return json.dumps(
         {
             "id": "evt_test_1",
@@ -80,17 +80,17 @@ def papeis_definidos(auth_service) -> list[tuple[str, str]]:
 
 
 def test_pagamento_confirmado_ativa_o_plano_e_troca_o_papel(client, db_session, auth_service):
-    corpo = evento_checkout(usuario_id=42, plano="nerd")
+    corpo = evento_checkout(usuario_id=42, plano="professor_pro")
 
     resposta = enviar(client, corpo, assinar(corpo))
 
     assert resposta.status_code == 200, resposta.text
     assinatura = db_session.get(Assinatura, 42)
-    assert (assinatura.premium, assinatura.plano) == (True, "nerd")
+    assert (assinatura.premium, assinatura.plano) == (True, "professor_pro")
     assert assinatura.stripe_customer_id == "cus_test_1"
     assert assinatura.stripe_subscription_id == "sub_test_1"
     assert papeis_definidos(auth_service) == [
-        ("http://127.0.0.1:9/internal/users/42/role", "nerd")
+        ("http://127.0.0.1:9/internal/users/42/role", "professor_pro")
     ]
 
 
@@ -117,18 +117,18 @@ def test_mesmo_evento_duas_vezes_nao_quebra(client, db_session, auth_service, ca
     assert cancelamentos == []
 
 
-def test_subir_de_nerd_pra_stalker_cancela_a_assinatura_antiga(
+def test_subir_de_pro_pra_escola_cancela_a_assinatura_antiga(
     client, db_session, auth_service, cancelamentos
 ):
-    db_session.add(Assinatura(usuario_id=45, premium=True, plano="nerd", stripe_subscription_id="sub_nerd"))
+    db_session.add(Assinatura(usuario_id=45, premium=True, plano="professor_pro", stripe_subscription_id="sub_pro"))
     db_session.commit()
-    corpo = evento_checkout(usuario_id=45, plano="stalker_do_tomhanks", subscription="sub_stalker")
+    corpo = evento_checkout(usuario_id=45, plano="coordenador", subscription="sub_escola")
 
     assert enviar(client, corpo, assinar(corpo)).status_code == 200
 
     assinatura = db_session.get(Assinatura, 45)
-    assert (assinatura.plano, assinatura.stripe_subscription_id) == ("stalker_do_tomhanks", "sub_stalker")
-    assert cancelamentos == ["sub_nerd"]
+    assert (assinatura.plano, assinatura.stripe_subscription_id) == ("coordenador", "sub_escola")
+    assert cancelamentos == ["sub_pro"]
 
 
 def test_auth_service_fora_do_ar_responde_502_e_nao_grava(client, db_session, auth_service):
@@ -192,7 +192,7 @@ def test_sem_segredo_configurado_responde_503(client, monkeypatch):
 
 
 def test_assinatura_cancelada_volta_pro_plano_gratuito(client, db_session, auth_service):
-    db_session.add(Assinatura(usuario_id=55, premium=True, plano="nerd", stripe_subscription_id="sub_55"))
+    db_session.add(Assinatura(usuario_id=55, premium=True, plano="professor_pro", stripe_subscription_id="sub_55"))
     db_session.commit()
     corpo = evento_cancelamento("sub_55")
 
@@ -201,20 +201,20 @@ def test_assinatura_cancelada_volta_pro_plano_gratuito(client, db_session, auth_
     assinatura = db_session.get(Assinatura, 55)
     db_session.refresh(assinatura)
     assert (assinatura.premium, assinatura.plano) == (False, None)
-    assert papeis_definidos(auth_service)[-1][1] == "cinefilo"
+    assert papeis_definidos(auth_service)[-1][1] == "professor"
 
 
 def test_cancelamento_de_assinatura_ja_trocada_nao_rebaixa_ninguem(client, db_session, auth_service):
     """O cancelamento da assinatura antiga (troca de plano) também vira
     webhook — mas o banco já guarda a nova, então nada muda."""
     db_session.add(
-        Assinatura(usuario_id=56, premium=True, plano="stalker_do_tomhanks", stripe_subscription_id="sub_novo")
+        Assinatura(usuario_id=56, premium=True, plano="coordenador", stripe_subscription_id="sub_novo")
     )
     db_session.commit()
     corpo = evento_cancelamento("sub_antigo")
 
     assert enviar(client, corpo, assinar(corpo)).status_code == 200
-    assert db_session.get(Assinatura, 56).plano == "stalker_do_tomhanks"
+    assert db_session.get(Assinatura, 56).plano == "coordenador"
     assert papeis_definidos(auth_service) == []
 
 

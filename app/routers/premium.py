@@ -22,12 +22,12 @@ from app.services.auth_client import PapelNaoAtualizado, definir_papel_pago
 router = APIRouter(prefix="/premium", tags=["premium"])
 
 # Plano gratuito: é pra ele que volta quem cancela um plano pago.
-PLANO_GRATUITO = "cinefilo"
+PLANO_GRATUITO = "professor"
 
 
 class CheckoutIn(BaseModel):
-    # Cinéfilo não é vendido (é o gratuito); admin não é plano.
-    plano: Literal["nerd", "stalker_do_tomhanks"]
+    # Free (professor) não é vendido (é o gratuito); admin não é plano.
+    plano: Literal["professor_pro", "coordenador"]
 
 
 class CheckoutOut(BaseModel):
@@ -36,7 +36,7 @@ class CheckoutOut(BaseModel):
 
 class StatusPremiumOut(BaseModel):
     premium: bool
-    # Plano pago ativo (nerd / stalker_do_tomhanks), ou None no gratuito.
+    # Plano pago ativo (professor_pro / coordenador), ou None no gratuito.
     plano: str | None
 
 
@@ -132,7 +132,7 @@ def _ativar_plano(db: Session, sessao: dict) -> None:
     assinatura.stripe_subscription_id = sessao.get("subscription")
     db.commit()
 
-    # Trocou de plano (ex.: Nerd -> Stalker): cancela a assinatura anterior.
+    # Trocou de plano (ex.: Pro -> Escola): cancela a assinatura anterior.
     # O cancelamento dispara outro webhook, mas ele não acha mais essa
     # assinatura no banco (o ID já é o novo) — então não rebaixa ninguém.
     if assinatura_antiga and assinatura_antiga != assinatura.stripe_subscription_id:

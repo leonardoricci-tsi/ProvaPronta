@@ -10,7 +10,7 @@ def test_registrar_evento_grava_no_stream(client, fake_redis):
 def test_consultar_eventos_exige_admin(client):
     client.post("/logs", json={"usuario_id": 1, "acao": "login"})
 
-    token_usuario_comum = token_para(1, "cinefilo")
+    token_usuario_comum = token_para(1, "professor")
     resposta = client.get("/logs", headers={"Authorization": f"Bearer {token_usuario_comum}"})
     assert resposta.status_code == 403
 

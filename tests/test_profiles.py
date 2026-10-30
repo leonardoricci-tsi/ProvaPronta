@@ -9,7 +9,7 @@ AUTH_URL = get_settings().auth_service_url
 
 
 def test_perfil_sem_edicao_vem_vazio_com_nome_do_auth_service(client, auth_service):
-    token = criar_token(usuario_id=501, role="cinefilo")
+    token = criar_token(usuario_id=501, role="professor")
 
     resposta = client.get("/profiles/501", headers=auth_headers(token))
 
@@ -38,7 +38,7 @@ def test_perfil_exige_login(client):
 
 
 def test_dono_edita_a_propria_bio(client, auth_service):
-    token = criar_token(usuario_id=505, role="cinefilo")
+    token = criar_token(usuario_id=505, role="professor")
 
     resposta = client.patch("/profiles/505", json={"bio": "Professora de Biologia"}, headers=auth_headers(token))
 
@@ -49,7 +49,7 @@ def test_dono_edita_a_propria_bio(client, auth_service):
 
 
 def test_nao_edita_perfil_de_outro_usuario(client, auth_service, db_session):
-    token_intruso = criar_token(usuario_id=506, role="nerd")
+    token_intruso = criar_token(usuario_id=506, role="professor_pro")
 
     resposta = client.patch(
         "/profiles/507", json={"bio": "hackeado"}, headers=auth_headers(token_intruso)
@@ -71,7 +71,7 @@ def test_admin_tambem_nao_edita_perfil_de_outro(client, auth_service):
 def test_usuario_id_no_corpo_e_ignorado(client, auth_service, db_session):
     """Mandar o ID de outra pessoa no corpo não muda de quem é o perfil
     editado — o dono vem do JWT (e da URL, conferida contra o JWT)."""
-    token = criar_token(usuario_id=510, role="nerd")
+    token = criar_token(usuario_id=510, role="professor_pro")
 
     resposta = client.patch(
         "/profiles/510",
@@ -93,7 +93,7 @@ def test_bio_acima_de_280_caracteres_e_recusada(client, auth_service):
 
 
 def test_tentativa_negada_vai_pro_log_de_auditoria(client, auth_service):
-    token_intruso = criar_token(usuario_id=513, role="nerd")
+    token_intruso = criar_token(usuario_id=513, role="professor_pro")
 
     client.patch("/profiles/514", json={"bio": "x"}, headers=auth_headers(token_intruso))
 

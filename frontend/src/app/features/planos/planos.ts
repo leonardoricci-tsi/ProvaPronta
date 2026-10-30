@@ -26,40 +26,40 @@ interface Plano {
   destaque?: boolean;
 }
 
-// Mesmos planos da landing page. Cada plano é um papel do RBAC: Cinéfilo é o
-// gratuito (todo cadastro nasce nele), Nerd e Stalker são vendidos.
+// Mesmos planos da landing page. Cada plano é um papel do RBAC: Free
+// (`professor`) é o gratuito (todo cadastro nasce nele), Pro e Escola são vendidos.
 export const PLANOS: Plano[] = [
   {
-    papel: 'cinefilo',
-    icone: '🍿',
-    nome: 'Cinéfilo',
+    papel: 'professor',
+    icone: '📝',
+    nome: 'Free',
     preco: 'Grátis',
     periodo: '',
-    descricao: 'Para quem curte um clássico com calma, sem compromisso.',
-    beneficios: ['Acesso ao catálogo completo', 'Sinopse e ficha técnica de cada filme', 'Perfil pessoal'],
+    descricao: 'Para experimentar com uma turma.',
+    beneficios: ['1 turma (até 40 alunos)', '2 provas por mês', 'Questões de múltipla escolha', '3 PDFs de material'],
   },
   {
-    papel: 'nerd',
-    icone: '🤓',
-    nome: 'Nerd',
-    preco: 'R$ 19,90',
+    papel: 'professor_pro',
+    icone: '🎓',
+    nome: 'Pro',
+    preco: 'R$ 29,90',
     periodo: '/mês',
-    descricao: 'Sabe o ano de lançamento de cor e adora debater cada cena.',
-    beneficios: ['Tudo do plano Cinéfilo', 'Favoritar filmes', 'Comentar e ler a opinião de outros fãs'],
+    descricao: 'Para o professor com várias turmas.',
+    beneficios: ['Turmas e provas ilimitadas', 'Versões A/B embaralhadas', 'Banco de questões reaproveitável', 'Exportar notas em planilha'],
     destaque: true,
   },
   {
-    papel: 'stalker_do_tomhanks',
-    icone: '🕵️',
-    nome: 'Stalker do Tom Hanks',
-    preco: 'R$ 9.999,90',
+    papel: 'coordenador',
+    icone: '🏫',
+    nome: 'Escola',
+    preco: 'R$ 199,90',
     periodo: '/mês',
-    descricao: 'Já decorou a filmografia inteira e sabe até o nome do cachorro do elenco.',
-    beneficios: ['Tudo do plano Nerd', 'Acesso vitalício ao fã-clube (quiz)', 'Nível de dedicação: PhD em Forrest Gump'],
+    descricao: 'Para a coordenação pedagógica.',
+    beneficios: ['Tudo do Pro para até 15 professores', 'Coordenador revisa e aprova a prova', 'Relatório por turma e por assunto'],
   },
 ];
 
-const NIVEL: Record<string, number> = { cinefilo: 1, nerd: 2, stalker_do_tomhanks: 3, admin: 4 };
+const NIVEL: Record<string, number> = { professor: 1, professor_pro: 2, coordenador: 3, admin: 4 };
 
 @Component({
   selector: 'app-planos',

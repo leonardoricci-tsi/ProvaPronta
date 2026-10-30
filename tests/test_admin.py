@@ -5,7 +5,7 @@ from tests.conftest import auth_headers, criar_token
 
 
 def test_usuario_comum_nao_acessa_rota_admin(client):
-    token = criar_token(role="nerd")
+    token = criar_token(role="professor_pro")
 
     resposta = client.get("/admin/logs", headers=auth_headers(token))
 
@@ -28,7 +28,7 @@ def test_admin_lista_usuarios(client):
                     "id": 1,
                     "nome": "Ana",
                     "email": "ana@example.com",
-                    "role": "cinefilo",
+                    "role": "professor",
                     "criado_em": "2026-01-01T00:00:00",
                 }
             ],
@@ -39,7 +39,7 @@ def test_admin_lista_usuarios(client):
     resposta = client.get("/auth/admin/users", headers=auth_headers(token))
 
     assert resposta.status_code == 200
-    assert resposta.json()[0]["role"] == "cinefilo"
+    assert resposta.json()[0]["role"] == "professor"
 
 
 @respx.mock
@@ -54,7 +54,7 @@ def test_admin_promove_usuario(client):
                 "id": 1,
                 "nome": "Ana",
                 "email": "ana@example.com",
-                "role": "stalker_do_tomhanks",
+                "role": "coordenador",
                 "criado_em": "2026-01-01T00:00:00",
             },
         )
@@ -63,10 +63,10 @@ def test_admin_promove_usuario(client):
 
     resposta = client.patch(
         "/auth/admin/users/1/role",
-        json={"role": "stalker_do_tomhanks"},
+        json={"role": "coordenador"},
         headers=auth_headers(token),
     )
 
     assert resposta.status_code == 200
-    assert resposta.json()["role"] == "stalker_do_tomhanks"
+    assert resposta.json()["role"] == "coordenador"
     assert rota_mock.calls.last.request.headers["Authorization"] == auth_headers(token)["Authorization"]

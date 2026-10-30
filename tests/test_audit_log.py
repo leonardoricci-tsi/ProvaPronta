@@ -10,7 +10,7 @@ LOG_SERVICE_URL = get_settings().log_service_url
 @respx.mock
 def test_tentativa_negada_em_rota_admin_registra_evento(client):
     rota_mock = respx.post(f"{LOG_SERVICE_URL}/logs").mock(return_value=Response(201, json={"id": "1-0"}))
-    token_comum = criar_token(role="nerd")
+    token_comum = criar_token(role="professor_pro")
 
     resposta = client.get("/admin/logs", headers=auth_headers(token_comum))
 
@@ -22,7 +22,7 @@ def test_tentativa_negada_em_rota_admin_registra_evento(client):
 @respx.mock
 def test_logout_registra_evento(client):
     rota_mock = respx.post(f"{LOG_SERVICE_URL}/logs").mock(return_value=Response(201, json={"id": "1-0"}))
-    token = criar_token(role="cinefilo")
+    token = criar_token(role="professor")
 
     resposta = client.post("/auth/logout", headers=auth_headers(token))
 
@@ -39,7 +39,7 @@ def test_consultar_logs_usuario_comum_recebe_403_sem_proxy_de_consulta(client):
     # antes de repassar pro log-service.
     respx.post(f"{LOG_SERVICE_URL}/logs").mock(return_value=Response(201, json={"id": "1-0"}))
     rota_consulta = respx.get(f"{LOG_SERVICE_URL}/logs")
-    token = criar_token(role="nerd")
+    token = criar_token(role="professor_pro")
 
     resposta = client.get("/admin/logs", headers=auth_headers(token))
 

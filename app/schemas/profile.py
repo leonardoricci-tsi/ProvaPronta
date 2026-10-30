@@ -17,6 +17,6 @@ class PerfilOut(BaseModel):
     # Pro front decidir se mostra o botão de editar. É só interface: quem
     # garante a regra é o 403 do PATCH.
     eh_meu: bool
-    # Plano pago ativo (atividade 7) — nerd / stalker_do_tomhanks, ou None
+    # Plano pago ativo (atividade 7) — professor_pro / coordenador, ou None
     # no gratuito. Vira o selo no perfil, que aparece pra quem visita também.
     plano: str | None

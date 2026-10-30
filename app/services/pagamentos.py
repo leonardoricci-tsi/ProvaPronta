@@ -5,8 +5,8 @@ from app.config import get_settings
 _client: stripe.StripeClient | None = None
 
 # Planos à venda (atividade 7) — cada um é o papel que o usuário recebe.
-# Cinéfilo não está aqui: é o plano gratuito, papel padrão do cadastro.
-PLANOS_PAGOS = ("nerd", "stalker_do_tomhanks")
+# Free (professor) não está aqui: é o plano gratuito, papel padrão do cadastro.
+PLANOS_PAGOS = ("professor_pro", "coordenador")
 
 
 class PagamentoNaoConfigurado(Exception):
@@ -23,7 +23,7 @@ class AssinaturaWebhookInvalida(Exception):
 
 def _preco_do_plano(plano: str) -> str:
     settings = get_settings()
-    return {"nerd": settings.stripe_price_nerd, "stalker_do_tomhanks": settings.stripe_price_stalker}[
+    return {"professor_pro": settings.stripe_price_pro, "coordenador": settings.stripe_price_escola}[
         plano
     ]
 
@@ -75,7 +75,7 @@ def criar_checkout(usuario_id: int, plano: str) -> str:
 
 
 def cancelar_assinatura(subscription_id: str) -> None:
-    """Troca de plano (Nerd -> Stalker): a assinatura antiga é cancelada pra
+    """Troca de plano (Pro -> Escola): a assinatura antiga é cancelada pra
     ninguém pagar dois planos ao mesmo tempo. Melhor esforço — se falhar, o
     plano novo já está ativo e a antiga pode ser cancelada no painel."""
     try:

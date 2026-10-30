@@ -14,7 +14,7 @@ type Aba = 'usuarios' | 'comentarios' | 'favoritos';
   styleUrl: './admin.css',
 })
 export class Admin implements OnInit {
-  readonly PAPEIS = ['cinefilo', 'nerd', 'stalker_do_tomhanks', 'admin'];
+  readonly PAPEIS = ['professor', 'professor_pro', 'coordenador', 'admin'];
 
   abaAtiva = signal<Aba>('usuarios');
 

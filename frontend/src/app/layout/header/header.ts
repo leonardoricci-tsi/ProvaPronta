@@ -7,9 +7,9 @@ import { PremiumService } from '../../core/services/premium.service';
 import { ProfileService } from '../../core/services/profile.service';
 
 const NOME_PAPEL: Record<string, string> = {
-  cinefilo: 'Cinéfilo',
-  nerd: 'Nerd',
-  stalker_do_tomhanks: 'Stalker do Tom Hanks',
+  professor: 'Professor',
+  professor_pro: 'Professor Pro',
+  coordenador: 'Coordenador',
   admin: 'Admin',
 };
 

@@ -70,7 +70,7 @@ def require_admin(
 # topo: faz tudo que os outros fazem e ainda opera o sistema
 # (require_admin acima cobre as ações exclusivas dele: ver o log de
 # auditoria, promover usuário) — não é um papel à parte.
-NIVEL_PAPEL = {"cinefilo": 1, "nerd": 2, "stalker_do_tomhanks": 3, "admin": 4}
+NIVEL_PAPEL = {"professor": 1, "professor_pro": 2, "coordenador": 3, "admin": 4}
 
 
 def require_papel_minimo(papel_minimo: str):

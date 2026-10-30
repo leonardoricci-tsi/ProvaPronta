@@ -17,7 +17,7 @@ _RESP_PAPEL_INVALIDO_OU_USUARIO_NAO_ENCONTRADO = {
         "content": {
             "application/json": {
                 "example": {
-                    "detail": "Papel inválido. Use um de: cinefilo, nerd, stalker_do_tomhanks, admin"
+                    "detail": "Papel inválido. Use um de: professor, professor_pro, coordenador, admin"
                 }
             }
         },
