@@ -45,6 +45,10 @@ class Prova(Base):
         back_populates="prova", cascade="all, delete-orphan", order_by="Questao.ordem"
     )
 
+    @property
+    def total_questoes(self) -> int:
+        return len(self.questoes)
+
 
 class Questao(Base):
     """Questão de múltipla escolha. O gabarito (`resposta_correta`, índice

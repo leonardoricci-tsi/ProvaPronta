@@ -30,6 +30,10 @@ class Turma(Base):
     )
     provas: Mapped[list["Prova"]] = relationship(back_populates="turma")  # noqa: F821
 
+    @property
+    def total_alunos(self) -> int:
+        return len(self.alunos)
+
 
 class Aluno(Base):
     """Aluno de uma turma. Só o mínimo (LGPD, muitos são menores de idade):

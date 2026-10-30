@@ -12,7 +12,9 @@ from app.routers import (
     health,
     premium,
     profiles,
+    provas,
     storage_proxy,
+    turmas,
 )
 
 
@@ -37,6 +39,8 @@ app.include_router(auth.router)
 app.include_router(admin.router)
 app.include_router(profiles.router)
 app.include_router(premium.router)
+app.include_router(turmas.router)
+app.include_router(provas.router)
 # Antes do mount de "/": senão o StaticFiles engole o caminho da foto.
 app.include_router(storage_proxy.router)
 

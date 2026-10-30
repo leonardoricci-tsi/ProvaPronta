@@ -96,3 +96,21 @@ RESP_ERROS_WEBHOOK = {
         "Webhook do Stripe não configurado neste ambiente",
     ),
 }
+
+RESP_403_LIMITE_FREE = {
+    403: _erro(
+        "Plano Free no limite (1 turma, 2 provas por mês) — o Pro libera",
+        "O plano Free permite 1 turma. Assine o Pro para criar mais.",
+    )
+}
+
+RESP_409_TURMA_COM_PROVA = {
+    409: _erro(
+        "A turma ainda tem provas — apague ou mude as provas de turma antes",
+        "A turma tem provas: apague as provas antes de apagar a turma",
+    )
+}
+
+RESP_409_ALUNO_NUMERO = {
+    409: _erro("Já existe aluno com esse número de chamada na turma", "Número de chamada já usado nesta turma")
+}
