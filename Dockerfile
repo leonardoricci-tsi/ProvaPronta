@@ -25,6 +25,8 @@ RUN pip install --no-cache-dir -r requirements.txt
 COPY app/ ./app/
 COPY alembic/ ./alembic/
 COPY alembic.ini .
+# DDL do domínio (db/001_dominio.sql): a migration do Alembic lê de lá.
+COPY db/ ./db/
 
 # Substitui o app/static do código-fonte pelo build de produção do Angular
 # gerado no stage anterior (index.html/JS/CSS com hash + 404.html de fallback).
