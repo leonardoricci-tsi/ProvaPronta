@@ -102,7 +102,7 @@ jobs:
       # gerado aqui com valores DESCARTÁVEIS, aleatórios a cada run: senha
       # do MySQL temporário, JWT_SECRET, chaves do Garage. Nenhum é segredo
       # de verdade (nada disso existe fora deste run) e nenhum fica no repo.
-      # TMDB/SMTP recebem valor fictício: o smoke test não passa por eles.
+      # SMTP recebe valor fictício: o smoke test não passa por eles.
       - name: Gerar .env descartável
         run: |
           DB_PASSWORD="$(openssl rand -hex 16)"
@@ -111,7 +111,6 @@ jobs:
             echo "CI_DB_PASSWORD=$DB_PASSWORD"
             echo "DATABASE_URL=mysql+pymysql://ci:$DB_PASSWORD@mysql:3306/api_filmes"
             echo "JWT_SECRET=$(openssl rand -hex 32)"
-            echo "TMDB_API_KEY=ci-fake"
             echo "SMTP_USER=ci-fake"
             echo "SMTP_PASSWORD=ci-fake"
             echo "GARAGE_RPC_SECRET=$(openssl rand -hex 32)"

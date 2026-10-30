@@ -13,7 +13,7 @@ class Perfil(Base):
     __tablename__ = "perfis"
 
     # Um perfil por usuário, então o próprio usuario_id é a PK. Sem
-    # ForeignKey pra usuarios, pelo mesmo motivo de favoritos/comentarios:
+    # ForeignKey pra usuarios, pelo mesmo motivo das outras tabelas do usuário:
     # outro serviço, outro dono — o usuario_id é validado só pelo JWT.
     usuario_id: Mapped[int] = mapped_column(primary_key=True, autoincrement=False)
     bio: Mapped[str | None] = mapped_column(String(280), nullable=True)

@@ -6,7 +6,7 @@ from sqlalchemy.orm import Session
 
 from app.auth.dependencies import UsuarioAutenticado, bearer_scheme, get_current_user
 from app.database import get_db
-from app.models import Favorito, Perfil
+from app.models import Perfil
 from app.openapi_responses import (
     RESP_401,
     RESP_403_PERFIL_ALHEIO,
@@ -36,8 +36,8 @@ def require_dono_do_perfil(
 ) -> UsuarioAutenticado:
     """Só o dono edita o próprio perfil (atividade 6, reaproveitando a
     atividade 4): compara o `usuario_id` da URL com o `sub` do JWT — nunca
-    com nada que venha no corpo. Nem admin passa: moderar comentário é
-    uma coisa, reescrever a bio de alguém é outra.
+    com nada que venha no corpo. Nem admin passa: dar suporte é uma
+    coisa, reescrever a bio de alguém é outra.
 
     A tentativa negada vai pro log de auditoria (atividade 5), igual às
     negações de `require_admin`/`require_papel_minimo`."""
@@ -81,12 +81,6 @@ def _montar_perfil(
     # Quem nunca editou o perfil não tem linha em `perfis` — mostra vazio,
     # não 404: o usuário existe (o auth-service acabou de confirmar).
     perfil = db.get(Perfil, usuario_id)
-    favoritos = (
-        db.query(Favorito)
-        .filter(Favorito.usuario_id == usuario_id)
-        .order_by(Favorito.criado_em.desc())
-        .all()
-    )
     foto_key = perfil.foto_key if perfil else None
     return PerfilOut(
         usuario_id=usuario_id,
@@ -95,7 +89,6 @@ def _montar_perfil(
         foto_url=storage.gerar_url_temporaria(foto_key) if foto_key else None,
         eh_meu=usuario_id == usuario_atual.id,
         plano=plano_pago(db, usuario_id),
-        favoritos=favoritos,
     )
 
 

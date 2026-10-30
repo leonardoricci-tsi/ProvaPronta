@@ -5,14 +5,13 @@ import os
 # variáveis na primeira chamada e fica em cache). Variável de ambiente vence
 # o .env, então a suíte nunca depende do .env de quem roda — nem lê segredo
 # de verdade — e roda igual no CI, onde não existe .env nenhum:
-# - segredos fictícios: tudo que usaria banco/TMDB/storage é SQLite em
+# - segredos fictícios: tudo que usaria banco/storage é SQLite em
 #   memória ou mock, nada aqui autentica em serviço real;
 # - serviços internos numa porta local fechada: chamada que um teste não
 #   mockou (ex.: o evento de auditoria fire-and-forget de um 403) falha na
 #   hora, em vez de sair pra rede — sem isso, resolver o nome
 #   "log-service" fora do Docker pode travar a suíte.
 os.environ["DATABASE_URL"] = "sqlite:///:memory:"
-os.environ["TMDB_API_KEY"] = "teste-tmdb-fake"
 os.environ["JWT_SECRET"] = "teste-jwt-secret-fake"
 os.environ["AUTH_SERVICE_URL"] = "http://127.0.0.1:9"
 os.environ["LOG_SERVICE_URL"] = "http://127.0.0.1:9"

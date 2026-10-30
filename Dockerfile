@@ -30,7 +30,7 @@ COPY alembic.ini .
 # gerado no stage anterior (index.html/JS/CSS com hash + 404.html de fallback).
 COPY --from=frontend-build /build/app/static ./app/static
 
-# DATABASE_URL, TMDB_API_KEY e JWT_SECRET vêm de variáveis de ambiente na
+# DATABASE_URL e JWT_SECRET vêm de variáveis de ambiente na
 # hora do `docker run` (-e ou --env-file) — nunca copiadas pra dentro da imagem.
 EXPOSE 8000
 CMD ["sh", "-c", "uvicorn app.main:app --host 0.0.0.0 --port ${PORT:-8000}"]

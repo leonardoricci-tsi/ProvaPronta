@@ -21,8 +21,8 @@ def registrar_evento(usuario_id: int, acao: str, ip: str | None = None) -> None:
     """Dispara o evento de auditoria pro log-service (atividade 5).
 
     Fire-and-forget: uma falha aqui (log-service fora do ar, rede interna
-    com problema) nunca pode derrubar a ação real do usuário — favoritar,
-    comentar ou logar não podem virar 500 por causa de um serviço que só
+    com problema) nunca pode derrubar a ação real do usuário — criar uma prova
+    ou logar não podem virar 500 por causa de um serviço que só
     observa. Timeout curto e erro engolido de propósito."""
     try:
         _get_http_client().post(

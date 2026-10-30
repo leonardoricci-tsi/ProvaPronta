@@ -8,15 +8,6 @@ from tests.conftest import auth_headers, criar_token
 AUTH_URL = get_settings().auth_service_url
 
 
-def criar_favorito(client, token, tmdb_movie_id=13, titulo="Forrest Gump"):
-    resposta = client.post(
-        "/favorites",
-        json={"tmdb_movie_id": tmdb_movie_id, "titulo": titulo, "poster_path": "/p.jpg"},
-        headers=auth_headers(token),
-    )
-    assert resposta.status_code == 201, resposta.text
-
-
 def test_perfil_sem_edicao_vem_vazio_com_nome_do_auth_service(client, auth_service):
     token = criar_token(usuario_id=501, role="cinefilo")
 
@@ -28,21 +19,6 @@ def test_perfil_sem_edicao_vem_vazio_com_nome_do_auth_service(client, auth_servi
     assert corpo["bio"] == ""
     assert corpo["foto_url"] is None
     assert corpo["eh_meu"] is True
-    assert corpo["favoritos"] == []
-
-
-def test_perfil_mostra_favoritos_do_dono_nao_de_quem_esta_vendo(client, auth_service):
-    token_dono = criar_token(usuario_id=502, role="nerd")
-    token_visitante = criar_token(usuario_id=503, role="nerd")
-    criar_favorito(client, token_dono, tmdb_movie_id=13, titulo="Forrest Gump")
-    criar_favorito(client, token_visitante, tmdb_movie_id=857, titulo="O Resgate do Soldado Ryan")
-
-    resposta = client.get("/profiles/502", headers=auth_headers(token_visitante))
-
-    assert resposta.status_code == 200
-    corpo = resposta.json()
-    assert corpo["eh_meu"] is False
-    assert [f["titulo"] for f in corpo["favoritos"]] == ["Forrest Gump"]
 
 
 def test_perfil_de_usuario_inexistente_da_404(client):
@@ -64,12 +40,12 @@ def test_perfil_exige_login(client):
 def test_dono_edita_a_propria_bio(client, auth_service):
     token = criar_token(usuario_id=505, role="cinefilo")
 
-    resposta = client.patch("/profiles/505", json={"bio": "Fã do Forrest"}, headers=auth_headers(token))
+    resposta = client.patch("/profiles/505", json={"bio": "Professora de Biologia"}, headers=auth_headers(token))
 
     assert resposta.status_code == 200
-    assert resposta.json()["bio"] == "Fã do Forrest"
+    assert resposta.json()["bio"] == "Professora de Biologia"
     releitura = client.get("/profiles/505", headers=auth_headers(token))
-    assert releitura.json()["bio"] == "Fã do Forrest"
+    assert releitura.json()["bio"] == "Professora de Biologia"
 
 
 def test_nao_edita_perfil_de_outro_usuario(client, auth_service, db_session):

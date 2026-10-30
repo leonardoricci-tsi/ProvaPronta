@@ -1,7 +1,5 @@
 from pydantic import BaseModel, Field
 
-from app.schemas.favorite import FavoriteOut
-
 
 class PerfilUpdateIn(BaseModel):
     # Só bio. Não existe campo de usuario_id aqui de propósito: se o cliente
@@ -22,4 +20,3 @@ class PerfilOut(BaseModel):
     # Plano pago ativo (atividade 7) — nerd / stalker_do_tomhanks, ou None
     # no gratuito. Vira o selo no perfil, que aparece pra quem visita também.
     plano: str | None
-    favoritos: list[FavoriteOut]

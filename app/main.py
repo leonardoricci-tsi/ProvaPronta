@@ -9,13 +9,9 @@ from app.config import get_settings
 from app.routers import (
     admin,
     auth,
-    comments,
-    favorites,
     health,
-    movies,
     premium,
     profiles,
-    quiz,
     storage_proxy,
 )
 
@@ -34,15 +30,11 @@ async def lifespan(_app: FastAPI):
     yield
 
 
-app = FastAPI(title="Catálogo de Filmes — Tom Hanks", lifespan=lifespan)
+app = FastAPI(title="ProvaPronta", lifespan=lifespan)
 
 app.include_router(health.router)
 app.include_router(auth.router)
-app.include_router(movies.router)
-app.include_router(favorites.router)
-app.include_router(comments.router)
 app.include_router(admin.router)
-app.include_router(quiz.router)
 app.include_router(profiles.router)
 app.include_router(premium.router)
 # Antes do mount de "/": senão o StaticFiles engole o caminho da foto.

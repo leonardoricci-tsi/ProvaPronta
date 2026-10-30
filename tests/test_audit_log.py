@@ -8,82 +8,11 @@ LOG_SERVICE_URL = get_settings().log_service_url
 
 
 @respx.mock
-def test_favoritar_registra_evento_no_log_service(client):
-    rota_mock = respx.post(f"{LOG_SERVICE_URL}/logs").mock(return_value=Response(201, json={"id": "1-0"}))
-    token = criar_token(role="nerd")
-
-    resposta = client.post(
-        "/favorites",
-        json={"tmdb_movie_id": 13, "titulo": "Forrest Gump", "poster_path": "/p.jpg"},
-        headers=auth_headers(token),
-    )
-
-    assert resposta.status_code == 201
-    assert rota_mock.called
-    corpo = rota_mock.calls.last.request.content
-    assert b"favoritar_filme:13" in corpo
-
-
-@respx.mock
-def test_comentar_registra_evento_no_log_service(client):
-    rota_mock = respx.post(f"{LOG_SERVICE_URL}/logs").mock(return_value=Response(201, json={"id": "1-0"}))
-    token = criar_token(role="nerd")
-
-    resposta = client.post(
-        "/comments",
-        json={"tmdb_movie_id": 13, "titulo": "Forrest Gump", "texto": "Bom!"},
-        headers=auth_headers(token),
-    )
-
-    assert resposta.status_code == 201
-    assert rota_mock.called
-    assert b"comentar:13" in rota_mock.calls.last.request.content
-
-
-@respx.mock
-def test_apagar_comentario_via_moderacao_registra_evento(client):
-    respx.post(f"{LOG_SERVICE_URL}/logs").mock(return_value=Response(201, json={"id": "1-0"}))
-    token_autor = criar_token(role="nerd")
-    token_admin = criar_token(role="admin")
-
-    comentario = client.post(
-        "/comments",
-        json={"tmdb_movie_id": 13, "titulo": "Forrest Gump", "texto": "Bom!"},
-        headers=auth_headers(token_autor),
-    ).json()
-
-    rota_mock = respx.post(f"{LOG_SERVICE_URL}/logs")
-    resposta = client.delete(
-        f"/admin/comments/{comentario['id']}", headers=auth_headers(token_admin)
-    )
-
-    assert resposta.status_code == 204
-    assert rota_mock.called
-    assert f"apagar_comentario_moderacao:{comentario['id']}".encode() in rota_mock.calls.last.request.content
-
-
-@respx.mock
-def test_tentativa_negada_por_permissao_registra_evento(client):
-    rota_mock = respx.post(f"{LOG_SERVICE_URL}/logs").mock(return_value=Response(201, json={"id": "1-0"}))
-    token_comum = criar_token(role="cinefilo")
-
-    resposta = client.post(
-        "/favorites",
-        json={"tmdb_movie_id": 13, "titulo": "Forrest Gump", "poster_path": "/p.jpg"},
-        headers=auth_headers(token_comum),
-    )
-
-    assert resposta.status_code == 403
-    assert rota_mock.called
-    assert b"acesso_negado:nerd" in rota_mock.calls.last.request.content
-
-
-@respx.mock
 def test_tentativa_negada_em_rota_admin_registra_evento(client):
     rota_mock = respx.post(f"{LOG_SERVICE_URL}/logs").mock(return_value=Response(201, json={"id": "1-0"}))
     token_comum = criar_token(role="nerd")
 
-    resposta = client.get("/admin/comments", headers=auth_headers(token_comum))
+    resposta = client.get("/admin/logs", headers=auth_headers(token_comum))
 
     assert resposta.status_code == 403
     assert rota_mock.called

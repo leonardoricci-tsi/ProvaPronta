@@ -67,10 +67,9 @@ def require_admin(
 
 
 # Escada de papéis — cada um inclui a permissão do anterior. "admin" é o
-# topo: consome tudo que stalker_do_tomhanks consome (comenta, favorita,
-# joga o quiz) e ainda modera (require_admin acima cobre as ações
-# exclusivas dele: apagar comentário/favorito de qualquer um, promover
-# usuário) — não é um papel à parte, é o "máximo do máximo".
+# topo: faz tudo que os outros fazem e ainda opera o sistema
+# (require_admin acima cobre as ações exclusivas dele: ver o log de
+# auditoria, promover usuário) — não é um papel à parte.
 NIVEL_PAPEL = {"cinefilo": 1, "nerd": 2, "stalker_do_tomhanks": 3, "admin": 4}
 
 
