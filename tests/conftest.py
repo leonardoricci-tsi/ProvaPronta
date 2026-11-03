@@ -108,3 +108,19 @@ def auth_service():
             side_effect=lambda request, id: Response(200, json={"id": int(id)})
         )
         yield mock
+
+
+@pytest.fixture()
+def garage_falso(monkeypatch):
+    """Troca o Garage por um dict em memória — o que interessa aqui é o que
+    o catálogo manda gravar/apagar, não o Garage em si (já validado ao vivo
+    no smoke test)."""
+    from app.services import storage
+
+    objetos: dict[str, tuple[bytes, str]] = {}
+    monkeypatch.setattr(
+        storage, "enviar_objeto", lambda chave, conteudo, ct: objetos.__setitem__(chave, (conteudo, ct))
+    )
+    monkeypatch.setattr(storage, "apagar_objeto", lambda chave: objetos.pop(chave, None))
+    monkeypatch.setattr(storage, "gerar_url_temporaria", lambda chave: f"http://garage.teste/{chave}?assinada")
+    return objetos

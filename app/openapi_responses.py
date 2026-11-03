@@ -114,3 +114,8 @@ RESP_409_TURMA_COM_PROVA = {
 RESP_409_ALUNO_NUMERO = {
     409: _erro("Já existe aluno com esse número de chamada na turma", "Número de chamada já usado nesta turma")
 }
+
+RESP_ERROS_MATERIAL = {
+    413: _erro("Arquivo acima do tamanho máximo (10 MB)", "PDF acima de 10 MB"),
+    415: _erro("Arquivo não é um PDF (conferido pelo conteúdo, não pela extensão)", "Envie um arquivo PDF"),
+}

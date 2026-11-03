@@ -102,9 +102,29 @@ esperar 403 "$(http POST "$BASE/profiles/$ID_A/foto" -H "Authorization: Bearer $
   -F "arquivo=@$TMP/foto.png;type=image/png")" "B enviando foto pro perfil de A"
 esperar 401 "$(http GET "$BASE/profiles/$ID_A")" "GET /profiles sem token"
 
+passo "Turma, prova e PDF do material (catálogo → MySQL + Garage)"
+TURMA="$(corpo_json '{"nome":"1º A","disciplina":"Biologia","ano_letivo":2026}')"
+esperar 201 "$(http POST "$BASE/turmas" -H "Authorization: Bearer $TOKEN_A" \
+  -H 'Content-Type: application/json' -d "$TURMA")" "POST /turmas"
+ID_TURMA="$(json "['id']")"
+PROVA="$(corpo_json '{"turma_id":%s,"titulo":"P1","questoes":[{"enunciado":"2+2?","alternativas":["3","4"],"resposta_correta":1}]}' "$ID_TURMA")"
+esperar 201 "$(http POST "$BASE/provas" -H "Authorization: Bearer $TOKEN_A" \
+  -H 'Content-Type: application/json' -d "$PROVA")" "POST /provas"
+ID_PROVA="$(json "['id']")"
+printf '%%PDF-1.4\n%%%%EOF\n' > "$TMP/material.pdf"
+esperar 200 "$(http POST "$BASE/provas/$ID_PROVA/material" -H "Authorization: Bearer $TOKEN_A" \
+  -F "arquivo=@$TMP/material.pdf;type=application/pdf")" "POST /provas/$ID_PROVA/material (PDF)"
+esperar 200 "$(http GET "$BASE/provas/$ID_PROVA/material" -H "Authorization: Bearer $TOKEN_A")" \
+  "GET link do material"
+esperar 200 "$(http GET "$(json "['url']")")" "GET do PDF pela URL pré-assinada"
+esperar 404 "$(http GET "$BASE/provas/$ID_PROVA" -H "Authorization: Bearer $TOKEN_B")" "B abrindo a prova de A"
+esperar 403 "$(http POST "$BASE/provas/$ID_PROVA/versao-b" -H "Authorization: Bearer $TOKEN_A")" \
+  "versão B no plano Free (papel professor)"
+
 passo "Auditoria (log-service → Redis)"
 EVENTOS="$(docker compose exec -T redis redis-cli --raw XREVRANGE audit_log + - COUNT 50)"
-for acao in login upload_foto_perfil "acesso_negado:perfil:$ID_A"; do
+for acao in login upload_foto_perfil "acesso_negado:perfil:$ID_A" "turma_criada:$ID_TURMA" \
+  "prova_criada:$ID_PROVA" "material_enviado:prova:$ID_PROVA" "acesso_negado:professor_pro"; do
   grep -qx "$acao" <<< "$EVENTOS" && ok "evento '$acao' gravado" || falha "evento '$acao' não chegou no log"
 done
 

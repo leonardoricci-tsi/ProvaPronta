@@ -75,3 +75,9 @@ class ProvaOut(BaseModel):
 class ProvaDetalheOut(ProvaOut):
     # Gabarito incluso: este endpoint só responde pro dono da prova.
     questoes: list[QuestaoOut]
+
+
+class MaterialOut(BaseModel):
+    nome: str
+    # URL pré-assinada, temporária — gerada a cada pedido, nunca gravada.
+    url: str

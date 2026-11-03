@@ -1,15 +1,34 @@
 import random
+from pathlib import PurePath
+from uuid import uuid4
 
-from fastapi import APIRouter, Depends, Query, Request, status
+from fastapi import APIRouter, Depends, File, HTTPException, Query, Request, UploadFile, status
 from sqlalchemy.orm import Session, selectinload
 
 from app.auth.dependencies import UsuarioAutenticado, get_current_user, require_papel_minimo
 from app.database import get_db
 from app.models import Prova, Questao, Turma
-from app.openapi_responses import RESP_401, RESP_403_LIMITE_FREE, RESP_404, resp_403_papel
+from app.openapi_responses import (
+    RESP_401,
+    RESP_403_LIMITE_FREE,
+    RESP_404,
+    RESP_502_STORAGE,
+    RESP_ERROS_MATERIAL,
+    resp_403_papel,
+)
 from app.routers._ownership import get_owned_or_404
-from app.schemas.prova import ProvaDetalheOut, ProvaIn, ProvaOut, ProvaUpdateIn, QuestaoIn
-from app.services import log_client, planos
+from app.schemas.prova import (
+    MaterialOut,
+    ProvaDetalheOut,
+    ProvaIn,
+    ProvaOut,
+    ProvaUpdateIn,
+    QuestaoIn,
+)
+from app.services import log_client, planos, storage
+
+# PDF do material (livro, apostila): até 10 MB, conferido pelos bytes.
+TAMANHO_MAXIMO_MATERIAL = 10 * 1024 * 1024
 
 router = APIRouter(prefix="/provas", tags=["provas"])
 
@@ -110,8 +129,12 @@ def remover_prova(
     db: Session = Depends(get_db),
 ) -> None:
     prova = get_owned_or_404(db, Prova, prova_id, usuario_atual.id)
+    material_key = prova.material_key
     db.delete(prova)
     db.commit()
+    # Só depois do commit: sem a prova no banco, ninguém mais acha o PDF.
+    if material_key:
+        storage.apagar_objeto(material_key)
     log_client.registrar_evento(usuario_atual.id, f"prova_removida:{prova_id}", ip=_ip(request))
 
 
@@ -158,3 +181,87 @@ def gerar_versao_b(
         usuario_atual.id, f"prova_versao_b:{original.id}:nova:{versao_b.id}", ip=_ip(request)
     )
     return versao_b
+
+
+@router.post(
+    "/{prova_id}/material",
+    response_model=ProvaDetalheOut,
+    responses=RESP_401 | RESP_404 | RESP_ERROS_MATERIAL | RESP_502_STORAGE,
+)
+def enviar_material(
+    prova_id: int,
+    request: Request,
+    arquivo: UploadFile = File(..., description="PDF do material (livro, apostila), até 10 MB"),
+    usuario_atual: UsuarioAutenticado = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> Prova:
+    """Mesmo caminho da foto de perfil: o arquivo vai pro Garage (bucket
+    privado), só a chave do objeto vai pro MySQL, ligada à prova."""
+    prova = get_owned_or_404(db, Prova, prova_id, usuario_atual.id)
+    # Lê no máximo 1 byte além do limite: o bastante pra saber que passou.
+    conteudo = arquivo.file.read(TAMANHO_MAXIMO_MATERIAL + 1)
+    if len(conteudo) > TAMANHO_MAXIMO_MATERIAL:
+        raise HTTPException(
+            status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE, detail="PDF acima de 10 MB"
+        )
+    # Tipo conferido pela assinatura do arquivo, não pela extensão nem pelo
+    # Content-Type que o navegador manda (os dois o cliente escolhe).
+    if not conteudo.startswith(b"%PDF-"):
+        raise HTTPException(
+            status_code=status.HTTP_415_UNSUPPORTED_MEDIA_TYPE, detail="Envie um arquivo PDF"
+        )
+
+    # Chave gerada pelo servidor; o nome original só serve pra exibir.
+    chave_nova = f"materiais/{usuario_atual.id}/{prova.id}/{uuid4().hex}.pdf"
+    nome = PurePath(arquivo.filename or "material.pdf").name[:255]
+    try:
+        storage.enviar_objeto(chave_nova, conteudo, "application/pdf")
+    except storage.StorageUnavailable as erro:
+        raise HTTPException(status_code=status.HTTP_502_BAD_GATEWAY, detail=str(erro)) from erro
+
+    chave_antiga = prova.material_key
+    prova.material_key, prova.material_nome = chave_nova, nome
+    try:
+        db.commit()
+    except Exception:
+        db.rollback()
+        storage.apagar_objeto(chave_nova)
+        raise
+    if chave_antiga:
+        storage.apagar_objeto(chave_antiga)
+
+    log_client.registrar_evento(usuario_atual.id, f"material_enviado:prova:{prova.id}", ip=_ip(request))
+    return prova
+
+
+@router.get("/{prova_id}/material", response_model=MaterialOut, responses=RESP_401 | RESP_404)
+def abrir_material(
+    prova_id: int,
+    usuario_atual: UsuarioAutenticado = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> MaterialOut:
+    """Link temporário (URL pré-assinada) pro PDF — só o dono da prova
+    recebe. Prova sem material também dá 404."""
+    prova = get_owned_or_404(db, Prova, prova_id, usuario_atual.id)
+    if not prova.material_key:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Prova sem material")
+    return MaterialOut(nome=prova.material_nome or "material.pdf", url=storage.gerar_url_temporaria(prova.material_key))
+
+
+@router.delete(
+    "/{prova_id}/material", status_code=status.HTTP_204_NO_CONTENT, responses=RESP_401 | RESP_404
+)
+def remover_material(
+    prova_id: int,
+    request: Request,
+    usuario_atual: UsuarioAutenticado = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> None:
+    prova = get_owned_or_404(db, Prova, prova_id, usuario_atual.id)
+    if not prova.material_key:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Prova sem material")
+    chave = prova.material_key
+    prova.material_key = prova.material_nome = None
+    db.commit()
+    storage.apagar_objeto(chave)
+    log_client.registrar_evento(usuario_atual.id, f"material_removido:prova:{prova.id}", ip=_ip(request))
