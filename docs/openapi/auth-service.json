@@ -1,10 +1,62 @@
 {
   "openapi": "3.1.0",
   "info": {
-    "title": "Auth Service — Catálogo de Filmes",
+    "title": "ProvaPronta — Auth Service",
+    "description": "Cadastro, login (JWT), papéis e redefinição de senha. Só a API do ProvaPronta fala com ele.",
     "version": "0.1.0"
   },
   "paths": {
+    "/health/live": {
+      "get": {
+        "tags": [
+          "health"
+        ],
+        "summary": "Liveness",
+        "description": "Liveness: o processo está de pé e respondendo — nada além disso.",
+        "operationId": "liveness_health_live_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "type": "object",
+                  "title": "Response Liveness Health Live Get"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/health": {
+      "get": {
+        "tags": [
+          "health"
+        ],
+        "summary": "Readiness",
+        "description": "Readiness: o MySQL (tabela `usuarios`) é crítico — sem ele não há\nlogin nem cadastro, então 503. O log-service não: a auditoria do login\né fire-and-forget (atividade 5), o login funciona sem ela — só fica\n\"degraded\". Do log-service pergunta só se está vivo (/health/live),\nnunca o /health completo dele, pra não encadear falhas.",
+        "operationId": "readiness_health_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "type": "object",
+                  "title": "Response Readiness Health Get"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Dependência crítica fora (MySQL): não consigo atender"
+          }
+        }
+      }
+    },
     "/auth/register": {
       "post": {
         "tags": [
@@ -105,6 +157,43 @@
             }
           }
         }
+      }
+    },
+    "/auth/refresh": {
+      "post": {
+        "tags": [
+          "auth"
+        ],
+        "summary": "Refresh",
+        "description": "Token novo com o papel ATUAL do banco (atividade 7). O papel viaja\ndentro do JWT, então depois que um pagamento troca o papel, o token\nantigo continua dizendo o papel velho até expirar — o front chama\nisto logo que o pagamento é confirmado.",
+        "operationId": "refresh_auth_refresh_post",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/TokenOut"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Token ausente, inválido ou expirado",
+            "content": {
+              "application/json": {
+                "example": {
+                  "detail": "Credenciais inválidas ou expiradas"
+                }
+              }
+            }
+          }
+        },
+        "security": [
+          {
+            "HTTPBearer": []
+          }
+        ]
       }
     },
     "/auth/me": {
@@ -428,7 +517,7 @@
             "content": {
               "application/json": {
                 "example": {
-                  "detail": "Papel inválido. Use um de: cinefilo, nerd, stalker_do_tomhanks, admin"
+                  "detail": "Papel inválido. Use um de: professor, professor_pro, coordenador, admin"
                 }
               }
             }
@@ -439,6 +528,75 @@
               "application/json": {
                 "example": {
                   "detail": "Usuário não encontrado"
+                }
+              }
+            }
+          },
+          "422": {
+            "description": "Validation Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPValidationError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/internal/users/{usuario_id}/role": {
+      "put": {
+        "tags": [
+          "internal"
+        ],
+        "summary": "Definir Papel Pago",
+        "description": "Plano pago (atividade 7): o webhook do Stripe chega no catálogo, que\nconfirma a assinatura e pede aqui a troca do papel — quem é dono da\ntabela `usuarios` continua sendo só o auth-service.\n\nAdmin nunca é rebaixado por plano (nem por cancelamento): o papel dele\nnão veio de pagamento.",
+        "operationId": "definir_papel_pago_internal_users__usuario_id__role_put",
+        "parameters": [
+          {
+            "name": "usuario_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "integer",
+              "title": "Usuario Id"
+            }
+          },
+          {
+            "name": "authorization",
+            "in": "header",
+            "required": false,
+            "schema": {
+              "anyOf": [
+                {
+                  "type": "string"
+                },
+                {
+                  "type": "null"
+                }
+              ],
+              "title": "Authorization"
+            }
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/PapelPagoIn"
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UsuarioOut"
                 }
               }
             }
@@ -504,6 +662,19 @@
           "senha"
         ],
         "title": "LoginIn"
+      },
+      "PapelPagoIn": {
+        "properties": {
+          "role": {
+            "type": "string",
+            "title": "Role"
+          }
+        },
+        "type": "object",
+        "required": [
+          "role"
+        ],
+        "title": "PapelPagoIn"
       },
       "RegisterIn": {
         "properties": {

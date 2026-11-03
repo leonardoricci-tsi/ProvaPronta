@@ -6,7 +6,11 @@ Create Date: 2026-10-29 00:00:00.000000
 
 Atividade 10: `assinaturas.plano` guarda o papel que foi pago — acompanha
 a troca de nomes dos papéis no auth-service (nerd -> professor_pro,
-stalker_do_tomhanks -> coordenador).
+stalker -> coordenador).
+
+Nota (atividade 10): o papel do topo do projeto anterior aparece aqui com
+o nome neutro `stalker`. Todo banco existente já passou desta revisão,
+então isso não muda nenhum banco: num banco novo esse papel nunca existe.
 """
 from typing import Sequence, Union
 
@@ -18,7 +22,7 @@ down_revision: Union[str, None] = 'e5f7a9b1c3d4'
 branch_labels: Union[str, Sequence[str], None] = None
 depends_on: Union[str, Sequence[str], None] = None
 
-_PLANOS = (('nerd', 'professor_pro'), ('stalker_do_tomhanks', 'coordenador'))
+_PLANOS = (('nerd', 'professor_pro'), ('stalker', 'coordenador'))
 
 
 def upgrade() -> None:

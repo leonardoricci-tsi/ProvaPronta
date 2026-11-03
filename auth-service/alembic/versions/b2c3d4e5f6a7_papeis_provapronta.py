@@ -7,6 +7,10 @@ Create Date: 2026-10-29 00:00:00.000000
 Atividade 10: a mesma escada de papéis do RBAC, com os nomes do negócio.
 Cada papel antigo vira o do mesmo degrau — quem pagava um plano continua
 no plano equivalente, e admin continua admin.
+
+Nota (atividade 10): o papel do topo do projeto anterior aparece aqui com
+o nome neutro `stalker`. Todo banco existente já passou desta revisão,
+então isso não muda nenhum banco: num banco novo esse papel nunca existe.
 """
 from typing import Sequence, Union
 
@@ -22,7 +26,7 @@ depends_on: Union[str, Sequence[str], None] = None
 _PAPEIS = (
     ('cinefilo', 'professor'),
     ('nerd', 'professor_pro'),
-    ('stalker_do_tomhanks', 'coordenador'),
+    ('stalker', 'coordenador'),
 )
 
 

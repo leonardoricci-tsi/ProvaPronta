@@ -1,11 +1,11 @@
-"""drop favoritos e comentarios (fim do catálogo de filmes)
+"""drop favoritos e comentarios (fim do projeto anterior)
 
 Revision ID: e5f7a9b1c3d4
 Revises: d4e6f8a0b2c3
 Create Date: 2026-10-29 00:00:00.000000
 
-Atividade 10: o catálogo de filmes sai e o ProvaPronta entra. Favoritos e
-comentários eram sobre filmes da TMDB e não têm equivalente no negócio
+Atividade 10: o projeto anterior sai e o ProvaPronta entra. Favoritos e
+comentários eram do domínio antigo e não têm equivalente no negócio
 novo — as tabelas saem. O histórico continua no git (e o downgrade
 recria as duas, vazias, com o esquema que tinham no fim).
 """
@@ -31,7 +31,7 @@ def downgrade() -> None:
     op.create_table('comentarios',
     sa.Column('id', sa.Integer(), nullable=False),
     sa.Column('usuario_id', sa.Integer(), nullable=False),
-    sa.Column('tmdb_movie_id', sa.Integer(), nullable=False),
+    sa.Column('item_externo_id', sa.Integer(), nullable=False),
     sa.Column('texto', sa.Text(), nullable=False),
     sa.Column('criado_em', sa.DateTime(), server_default=sa.text('now()'), nullable=False),
     sa.Column('titulo', sa.String(length=500), nullable=True),
@@ -39,16 +39,16 @@ def downgrade() -> None:
     sa.Column('nome_usuario', sa.String(length=255), nullable=True),
     sa.PrimaryKeyConstraint('id')
     )
-    op.create_index(op.f('ix_comentarios_tmdb_movie_id'), 'comentarios', ['tmdb_movie_id'], unique=False)
+    op.create_index(op.f('ix_comentarios_item_externo_id'), 'comentarios', ['item_externo_id'], unique=False)
     op.create_index(op.f('ix_comentarios_usuario_id'), 'comentarios', ['usuario_id'], unique=False)
     op.create_table('favoritos',
     sa.Column('id', sa.Integer(), nullable=False),
     sa.Column('usuario_id', sa.Integer(), nullable=False),
-    sa.Column('tmdb_movie_id', sa.Integer(), nullable=False),
+    sa.Column('item_externo_id', sa.Integer(), nullable=False),
     sa.Column('titulo', sa.String(length=500), nullable=False),
     sa.Column('poster_path', sa.String(length=255), nullable=True),
     sa.Column('criado_em', sa.DateTime(), server_default=sa.text('now()'), nullable=False),
     sa.PrimaryKeyConstraint('id'),
-    sa.UniqueConstraint('usuario_id', 'tmdb_movie_id', name='uq_favorito_usuario_filme')
+    sa.UniqueConstraint('usuario_id', 'item_externo_id', name='uq_favorito_usuario_item')
     )
     op.create_index(op.f('ix_favoritos_usuario_id'), 'favoritos', ['usuario_id'], unique=False)

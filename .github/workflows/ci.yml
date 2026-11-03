@@ -109,7 +109,7 @@ jobs:
           {
             echo "CI_DB_USER=ci"
             echo "CI_DB_PASSWORD=$DB_PASSWORD"
-            echo "DATABASE_URL=mysql+pymysql://ci:$DB_PASSWORD@mysql:3306/api_filmes"
+            echo "DATABASE_URL=mysql+pymysql://ci:$DB_PASSWORD@mysql:3306/provapronta"
             echo "JWT_SECRET=$(openssl rand -hex 32)"
             echo "SMTP_USER=ci-fake"
             echo "SMTP_PASSWORD=ci-fake"

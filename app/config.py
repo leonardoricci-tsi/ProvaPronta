@@ -24,7 +24,7 @@ class Settings(BaseSettings):
     s3_public_url: str = "http://localhost:8000"
     s3_access_key: str = ""
     s3_secret_key: str = ""
-    s3_bucket: str = "api-filmes-perfis"
+    s3_bucket: str = "provapronta-arquivos"
     # Tem que bater com o `s3_region` do garage.toml, senão a assinatura falha.
     s3_region: str = "garage"
     s3_url_expira_segundos: int = 900

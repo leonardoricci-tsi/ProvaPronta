@@ -1,10 +1,62 @@
 {
   "openapi": "3.1.0",
   "info": {
-    "title": "Log Service — Auditoria",
+    "title": "ProvaPronta — Log Service",
+    "description": "Eventos de auditoria do negócio (Redis Stream `audit_log`).",
     "version": "0.1.0"
   },
   "paths": {
+    "/health/live": {
+      "get": {
+        "tags": [
+          "health"
+        ],
+        "summary": "Liveness",
+        "description": "Liveness: o processo está de pé e respondendo — nada além disso.",
+        "operationId": "liveness_health_live_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "type": "object",
+                  "title": "Response Liveness Health Live Get"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/health": {
+      "get": {
+        "tags": [
+          "health"
+        ],
+        "summary": "Readiness",
+        "description": "Readiness: o Redis é a única dependência e é crítica — sem ele não\nexiste log de auditoria (nem gravar, nem consultar), então 503. É esse\n503 que o HEALTHCHECK do Docker enxerga pra marcar o container como\nunhealthy quando o Redis cai.",
+        "operationId": "readiness_health_get",
+        "responses": {
+          "200": {
+            "description": "Successful Response",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "additionalProperties": true,
+                  "type": "object",
+                  "title": "Response Readiness Health Get"
+                }
+              }
+            }
+          },
+          "503": {
+            "description": "Redis fora: não consigo gravar nem ler o log"
+          }
+        }
+      }
+    },
     "/logs": {
       "post": {
         "tags": [

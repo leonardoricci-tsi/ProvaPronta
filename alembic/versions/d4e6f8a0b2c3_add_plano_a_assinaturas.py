@@ -1,4 +1,4 @@
-"""add plano a assinaturas (Nerd ou Stalker do Tom Hanks)
+"""add plano a assinaturas (qual dos planos pagos foi comprado)
 
 Revision ID: d4e6f8a0b2c3
 Revises: c3d5e7f9a1b2

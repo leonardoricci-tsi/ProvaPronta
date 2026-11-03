@@ -22,8 +22,8 @@ def test_consultar_eventos_sem_token_e_401(client):
 
 def test_consultar_eventos_como_admin_retorna_na_ordem_certa(client):
     client.post("/logs", json={"usuario_id": 1, "acao": "login"})
-    client.post("/logs", json={"usuario_id": 1, "acao": "favoritar_filme"})
-    client.post("/logs", json={"usuario_id": 2, "acao": "comentar", "ip": "127.0.0.1"})
+    client.post("/logs", json={"usuario_id": 1, "acao": "prova_criada:1"})
+    client.post("/logs", json={"usuario_id": 2, "acao": "turma_criada:1", "ip": "127.0.0.1"})
 
     token_admin = token_para(99, "admin")
     resposta = client.get("/logs", headers={"Authorization": f"Bearer {token_admin}"})
@@ -32,7 +32,7 @@ def test_consultar_eventos_como_admin_retorna_na_ordem_certa(client):
     eventos = resposta.json()
     assert len(eventos) == 3
     # XREVRANGE: mais recente primeiro.
-    assert [e["acao"] for e in eventos] == ["comentar", "favoritar_filme", "login"]
+    assert [e["acao"] for e in eventos] == ["turma_criada:1", "prova_criada:1", "login"]
     assert eventos[0]["ip"] == "127.0.0.1"
     assert eventos[1]["ip"] is None
 

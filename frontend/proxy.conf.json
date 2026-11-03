@@ -7,5 +7,5 @@
   "/admin": { "target": "http://127.0.0.1:8000", "secure": false },
   "/profiles": { "target": "http://127.0.0.1:8000", "secure": false },
   "/premium": { "target": "http://127.0.0.1:8000", "secure": false },
-  "/api-filmes-perfis": { "target": "http://127.0.0.1:8000", "secure": false }
+  "/provapronta-arquivos": { "target": "http://127.0.0.1:8000", "secure": false }
 }

@@ -4,6 +4,11 @@ Revision ID: 6c7cac7f3161
 Revises: 
 Create Date: 2026-08-16 15:46:29.776251
 
+Nota (atividade 10): arquivo histórico do projeto anterior. A coluna do
+id externo virou `item_externo_id` (nome neutro). Todo banco existente
+(produção e CI) já passou desta revisão e essas tabelas saem em
+e5f7a9b1c3d4, então a troca não muda nenhum banco: só um banco novo passa
+por aqui, e ele cria e apaga as tabelas vazias.
 """
 from typing import Sequence, Union
 
@@ -32,24 +37,24 @@ def upgrade() -> None:
     op.create_table('comentarios',
     sa.Column('id', sa.Integer(), nullable=False),
     sa.Column('usuario_id', sa.Integer(), nullable=False),
-    sa.Column('tmdb_movie_id', sa.Integer(), nullable=False),
+    sa.Column('item_externo_id', sa.Integer(), nullable=False),
     sa.Column('texto', sa.Text(), nullable=False),
     sa.Column('criado_em', sa.DateTime(), server_default=sa.text('now()'), nullable=False),
     sa.ForeignKeyConstraint(['usuario_id'], ['usuarios.id'], name='fk_comentarios_usuario_id', ondelete='CASCADE'),
     sa.PrimaryKeyConstraint('id')
     )
-    op.create_index(op.f('ix_comentarios_tmdb_movie_id'), 'comentarios', ['tmdb_movie_id'], unique=False)
+    op.create_index(op.f('ix_comentarios_item_externo_id'), 'comentarios', ['item_externo_id'], unique=False)
     op.create_index(op.f('ix_comentarios_usuario_id'), 'comentarios', ['usuario_id'], unique=False)
     op.create_table('favoritos',
     sa.Column('id', sa.Integer(), nullable=False),
     sa.Column('usuario_id', sa.Integer(), nullable=False),
-    sa.Column('tmdb_movie_id', sa.Integer(), nullable=False),
+    sa.Column('item_externo_id', sa.Integer(), nullable=False),
     sa.Column('titulo', sa.String(length=500), nullable=False),
     sa.Column('poster_path', sa.String(length=255), nullable=True),
     sa.Column('criado_em', sa.DateTime(), server_default=sa.text('now()'), nullable=False),
     sa.ForeignKeyConstraint(['usuario_id'], ['usuarios.id'], name='fk_favoritos_usuario_id', ondelete='CASCADE'),
     sa.PrimaryKeyConstraint('id'),
-    sa.UniqueConstraint('usuario_id', 'tmdb_movie_id', name='uq_favorito_usuario_filme')
+    sa.UniqueConstraint('usuario_id', 'item_externo_id', name='uq_favorito_usuario_item')
     )
     op.create_index(op.f('ix_favoritos_usuario_id'), 'favoritos', ['usuario_id'], unique=False)
     # ### end Alembic commands ###
@@ -64,7 +69,7 @@ def downgrade() -> None:
     op.drop_table('favoritos')
     op.drop_constraint('fk_comentarios_usuario_id', 'comentarios', type_='foreignkey')
     op.drop_index(op.f('ix_comentarios_usuario_id'), table_name='comentarios')
-    op.drop_index(op.f('ix_comentarios_tmdb_movie_id'), table_name='comentarios')
+    op.drop_index(op.f('ix_comentarios_item_externo_id'), table_name='comentarios')
     op.drop_table('comentarios')
     op.drop_index(op.f('ix_usuarios_email'), table_name='usuarios')
     op.drop_table('usuarios')

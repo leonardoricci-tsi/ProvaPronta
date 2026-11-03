@@ -141,7 +141,7 @@ services:
       GARAGE_RPC_SECRET: ${GARAGE_RPC_SECRET}
       GARAGE_DEFAULT_ACCESS_KEY: ${S3_ACCESS_KEY}
       GARAGE_DEFAULT_SECRET_KEY: ${S3_SECRET_KEY}
-      GARAGE_DEFAULT_BUCKET: ${S3_BUCKET:-api-filmes-perfis}
+      GARAGE_DEFAULT_BUCKET: ${S3_BUCKET:-provapronta-arquivos}
     expose:
       - "3900"
     # A imagem do Garage não tem shell nem curl, só o binário: `garage status`
