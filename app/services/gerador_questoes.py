@@ -10,6 +10,7 @@ Groq; trocar de provedor é só configuração (`LLM_*`). O que volta é
 import io
 import json
 import logging
+import re
 
 import httpx
 from pydantic import ValidationError
@@ -167,23 +168,96 @@ def _json_da_resposta(conteudo: str) -> object:
         return json.loads(conteudo[inicio : fim + 1])
 
 
+# Nomes que os modelos usam no lugar dos pedidos — aceitos pra não jogar
+# fora uma questão boa por causa de uma chave em inglês ou sinônimo.
+_CHAVES_LISTA = ("questoes", "questões", "questions", "itens", "items")
+_CHAVES_ENUNCIADO = ("enunciado", "pergunta", "question", "statement", "texto")
+_CHAVES_ALTERNATIVAS = ("alternativas", "opcoes", "opções", "options", "alternatives", "choices")
+_CHAVES_RESPOSTA = (
+    "resposta_correta", "correta", "resposta", "gabarito", "answer", "correct_answer", "correct", "indice_correto",
+)
+_CHAVES_ASSUNTO = ("assunto", "tema", "topic", "subject")
+_LETRAS = "ABCDE"
+# "A) texto", "a. texto", "(B) texto", "C - texto"
+_PREFIXO_LETRA = re.compile(r"^\(?([A-Ea-e])\s*[).:\-–]\s+")
+
+
+def _primeiro(item: dict, chaves: tuple[str, ...]):
+    for chave in chaves:
+        if chave in item and item[chave] not in (None, ""):
+            return item[chave]
+    return None
+
+
+def _lista_de_questoes(bruto: object) -> list:
+    if isinstance(bruto, list):
+        return bruto
+    if not isinstance(bruto, dict):
+        return []
+    for chave in _CHAVES_LISTA:
+        if isinstance(bruto.get(chave), list):
+            return bruto[chave]
+    # Objeto com uma única lista dentro, com outro nome.
+    listas = [valor for valor in bruto.values() if isinstance(valor, list)]
+    return listas[0] if len(listas) == 1 else []
+
+
+def _alternativas(bruto: object) -> list[str]:
+    if isinstance(bruto, dict):
+        # {"A": "...", "B": "..."} — na ordem das letras.
+        bruto = [valor for _, valor in sorted(bruto.items(), key=lambda par: str(par[0]))]
+    if not isinstance(bruto, list):
+        return []
+    textos = [str(a).strip() for a in bruto]
+    # Só tira "A) " quando TODAS vêm marcadas em sequência (A, B, C...) —
+    # assim "E. coli é uma bactéria" sozinha não perde o começo.
+    letras = [_PREFIXO_LETRA.match(t) for t in textos]
+    if all(letras) and [m.group(1).upper() for m in letras] == list(_LETRAS[: len(textos)]):
+        return [_PREFIXO_LETRA.sub("", t, count=1).strip() for t in textos]
+    return textos
+
+
+def _indice_da_resposta(bruto: object, alternativas: list[str]) -> int | None:
+    """Índice 0-based da correta. Aceita índice, letra ("B", "b)", "B. ...")
+    ou o próprio texto da alternativa. Número igual ao total de alternativas
+    só faz sentido contando a partir de 1 — aí desconta um."""
+    total = len(alternativas)
+    if isinstance(bruto, bool):
+        return None
+    if isinstance(bruto, int):
+        if 0 <= bruto < total:
+            return bruto
+        return bruto - 1 if bruto == total else None
+    if not isinstance(bruto, str):
+        return None
+    texto = bruto.strip()
+    if texto.isdigit():
+        return _indice_da_resposta(int(texto), alternativas)
+    letra = _PREFIXO_LETRA.match(texto + " ") or re.fullmatch(r"\(?([A-Ea-e])\)?", texto)
+    if letra:
+        indice = _LETRAS.index(letra.group(1).upper())
+        return indice if indice < total else None
+    normalizadas = [a.casefold() for a in alternativas]
+    alvo = _PREFIXO_LETRA.sub("", texto).strip().casefold()
+    return normalizadas.index(alvo) if alvo in normalizadas else None
+
+
 def _questoes_validas(bruto: object, quantidade: int) -> list[QuestaoIn]:
     """Fica só com o que passa nas regras do editor; descarta o resto em
     vez de derrubar a geração inteira por uma questão malformada."""
-    itens = bruto.get("questoes") if isinstance(bruto, dict) else None
-    if not isinstance(itens, list):
-        return []
     validas = []
-    for item in itens:
+    for item in _lista_de_questoes(bruto):
         if not isinstance(item, dict):
             continue
+        alternativas = _alternativas(_primeiro(item, _CHAVES_ALTERNATIVAS))
+        assunto = _primeiro(item, _CHAVES_ASSUNTO)
         try:
             validas.append(
                 QuestaoIn(
-                    enunciado=str(item.get("enunciado", "")).strip(),
-                    alternativas=[str(a).strip() for a in item.get("alternativas") or []],
-                    resposta_correta=item.get("resposta_correta"),
-                    assunto=(str(item["assunto"]).strip()[:100] or None) if item.get("assunto") else None,
+                    enunciado=str(_primeiro(item, _CHAVES_ENUNCIADO) or "").strip(),
+                    alternativas=alternativas,
+                    resposta_correta=_indice_da_resposta(_primeiro(item, _CHAVES_RESPOSTA), alternativas),
+                    assunto=str(assunto).strip()[:100] or None if assunto else None,
                 )
             )
         except (ValidationError, TypeError, ValueError):
@@ -213,12 +287,16 @@ def gerar_questoes(texto: str, quantidade: int, disciplina: str | None = None) -
         logger.warning("IA respondeu %s: %s", resposta.status_code, resposta.text[:500])
         raise FalhaNaGeracao("O serviço de IA recusou o pedido. Tente de novo em instantes.")
 
+    conteudo = ""
     try:
-        conteudo = resposta.json()["choices"][0]["message"]["content"]
+        conteudo = resposta.json()["choices"][0]["message"]["content"] or ""
         questoes = _questoes_validas(_json_da_resposta(conteudo), quantidade)
     except (KeyError, IndexError, TypeError, ValueError) as erro:
-        raise FalhaNaGeracao("A IA devolveu uma resposta em formato inesperado.") from erro
+        # Trecho do que veio, só no log do servidor, pra saber o porquê.
+        logger.warning("IA em formato inesperado: %r", conteudo[:800])
+        raise FalhaNaGeracao("A IA devolveu uma resposta em formato inesperado. Tente de novo.") from erro
 
     if not questoes:
+        logger.warning("IA sem questões válidas: %r", conteudo[:800])
         raise FalhaNaGeracao("A IA não devolveu questões válidas. Tente de novo.")
     return questoes

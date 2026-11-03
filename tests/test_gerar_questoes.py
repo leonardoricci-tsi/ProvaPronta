@@ -228,3 +228,67 @@ def test_reasoning_effort_so_vai_para_modelos_gpt_oss(client, garage_falso, ia, 
     client.post(f"/provas/{prova['id']}/gerar-questoes", headers=auth_headers(token))
 
     assert "reasoning_effort" not in json.loads(ia.calls.last.request.content)
+
+
+@pytest.mark.parametrize(
+    "variacao, esperado",
+    [
+        # Resposta como letra, com e sem pontuação.
+        ({**QUESTAO_BOA, "resposta_correta": "B"}, 1),
+        ({**QUESTAO_BOA, "resposta_correta": "b)"}, 1),
+        ({**QUESTAO_BOA, "resposta_correta": "B) Mitocôndria"}, 1),
+        # Resposta como o texto da alternativa.
+        ({**QUESTAO_BOA, "resposta_correta": "mitocôndria"}, 1),
+        # Contando a partir de 1 só quando não dá pra ser 0-based (4 de 4).
+        ({**QUESTAO_BOA, "resposta_correta": 4}, 3),
+        ({**QUESTAO_BOA, "resposta_correta": "2"}, 2),
+        # Alternativas com prefixo de letra e como objeto {"A": ...}.
+        ({**QUESTAO_BOA, "alternativas": ["A) Ribossomo", "B) Mitocôndria", "C) Lisossomo", "D) Golgi"]}, 1),
+        (
+            {**QUESTAO_BOA, "alternativas": {"A": "Ribossomo", "B": "Mitocôndria", "C": "Lisossomo", "D": "Golgi"}},
+            1,
+        ),
+        # Chaves com outros nomes.
+        (
+            {
+                "pergunta": QUESTAO_BOA["enunciado"],
+                "opcoes": QUESTAO_BOA["alternativas"],
+                "gabarito": "B",
+                "tema": "Organelas",
+            },
+            1,
+        ),
+    ],
+)
+def test_aceita_variacoes_comuns_do_modelo(variacao, esperado):
+    from app.services.gerador_questoes import _questoes_validas
+
+    [questao] = _questoes_validas({"questoes": [variacao]}, 5)
+
+    assert questao.resposta_correta == esperado
+    assert questao.alternativas == QUESTAO_BOA["alternativas"]
+    assert questao.enunciado == QUESTAO_BOA["enunciado"]
+
+
+def test_aceita_lista_solta_ou_com_outro_nome():
+    from app.services.gerador_questoes import _questoes_validas
+
+    assert len(_questoes_validas([QUESTAO_BOA], 5)) == 1
+    assert len(_questoes_validas({"questions": [QUESTAO_BOA]}, 5)) == 1
+
+
+def test_nao_corta_alternativa_que_so_parece_letra():
+    from app.services.gerador_questoes import _questoes_validas
+
+    alternativas = ["Vírus", "Fungo", "Protozoário", "E. coli é uma bactéria"]
+    [questao] = _questoes_validas(
+        {"questoes": [{"enunciado": "Qual é bactéria?", "alternativas": alternativas, "resposta_correta": 3}]}, 5
+    )
+
+    assert questao.alternativas == alternativas
+
+
+def test_resposta_que_nao_bate_com_nada_descarta_a_questao():
+    from app.services.gerador_questoes import _questoes_validas
+
+    assert _questoes_validas({"questoes": [{**QUESTAO_BOA, "resposta_correta": "Núcleo"}]}, 5) == []
