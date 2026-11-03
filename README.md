@@ -1,154 +1,261 @@
 # ProvaPronta
 
-**Do PDF do seu material à nota no boletim: o ProvaPronta monta a prova, imprime uma folha com QR code por aluno e corrige pela foto do celular — para professores da educação básica que corrigem centenas de provas por bimestre.**
+**Provas de múltipla escolha prontas em minutos: o professor organiza as turmas, monta a prova com gabarito, anexa a apostila em PDF e, no plano Pro, gera uma versão B embaralhada contra cola.**
 
-> Projeto da disciplina ISW055 (Introdução à Computação em Nuvem), proposto pelo professor [@siriani](https://github.com/siriani).
+🌐 **No ar:** https://leonardo-oliveira-isw055.lapps.studio
+📘 **API (Swagger):** https://leonardo-oliveira-isw055.lapps.studio/docs
+
+> Projeto da disciplina ISW055 (Introdução à Computação em Nuvem), proposto pelo professor [@siriani](https://github.com/siriani) — [github.com/siriani](https://github.com/siriani).
 >
-> Este repositório é um espelho, com todo o histórico, de [leonardoricci-tsi/api_filme_](https://github.com/leonardoricci-tsi/api_filme_) — o catálogo de filmes do Tom Hanks das atividades 1 a 8, que continua lá como evidência da P1. A arquitetura (login, papéis, auditoria, object storage, pagamento, CI/CD, observabilidade) é reaproveitada inteira; o negócio é novo.
->
-> **Status (atividade 9):** plano de negócio. O código ainda é o do catálogo de filmes; a troca começa na atividade 10 (ver [Backlog](#backlog)).
+> **Atividade 10 — "Seu negócio no ar":** o negócio do [plano de negócio](docs/plano-de-negocio.md) (atividade 9) rodando na mesma stack do Portainer, com o mesmo subdomínio e os mesmos limites de 1 GB. Este repositório é um espelho, com todo o histórico, do [repositório das atividades 1 a 8](https://github.com/leonardoricci-tsi/api_filme_); a arquitetura foi reaproveitada inteira e o domínio é novo.
+
+### Conta de demonstração
+
+| E-mail | Senha | Plano |
+|---|---|---|
+| `marta@provapronta.demo` | `ProvaPronta2026` | Professor Pro, com a turma "1º A — Biologia", 5 alunos e 2 provas |
+
+Criada pela seed [`db/002_seed_dominio.sql`](db/002_seed_dominio.sql) (é a persona do plano de negócio). Para ver o plano Free, crie uma conta nova pelo site: todo cadastro nasce no Free.
 
 ---
 
-## 1. A dor
+## Sumário
+1. [O que está no ar](#1-o-que-está-no-ar)
+2. [Requisitos da atividade 10](#2-requisitos-da-atividade-10)
+3. [Arquitetura](#3-arquitetura)
+4. [Domínio: tabelas, migration e seed](#4-domínio-tabelas-migration-e-seed)
+5. [Papéis e permissões (403)](#5-papéis-e-permissões-403)
+6. [Isolamento por usuário (404)](#6-isolamento-por-usuário-404)
+7. [Eventos de auditoria](#7-eventos-de-auditoria)
+8. [Upload no object storage](#8-upload-no-object-storage)
+9. [Como rodar](#9-como-rodar)
+10. [Deploy em produção](#10-deploy-em-produção)
+11. [Documentação](#11-documentação)
 
-**Quem sofre:** professor do ensino fundamental II e médio, principalmente da rede pública, com muitas turmas e pouco tempo fora da sala.
+---
 
-**Quando:** no fim de cada bimestre. São duas tarefas que caem no fim de semana:
+## 1. O que está no ar
 
-1. **Montar a prova.** O professor copia trechos do livro ou da apostila em PDF para o Word, inventa alternativas erradas que façam sentido, monta uma versão B contra cola e digita o gabarito. Para não repetir a prova do ano anterior (que já circula entre os alunos), começa quase do zero.
-2. **Corrigir a prova.** Com 8 turmas de 35 alunos, são **280 provas por rodada**. Mesmo com a múltipla escolha, ele confere bolinha por bolinha com o gabarito na mão, soma, e depois digita nota por nota numa planilha ou no diário da escola.
-
-**Quanto custa hoje** (estimativa para a persona abaixo, por bimestre):
-
-| Tarefa | Conta | Tempo |
+| Tela | Rota | O que faz |
 |---|---|---|
-| Montar 2 provas (A/B) por série + recuperação | 3 séries × ~3 h | ~9 h |
-| Corrigir múltipla escolha | 280 provas × ~2 min | ~9 h |
-| Corrigir dissertativas | 280 provas × ~3 min | ~14 h |
-| Lançar notas | 280 notas, digitadas | ~2 h |
-| **Total** | | **~34 h por bimestre**, quase tudo fora do horário pago |
+| Landing pública | `/` | Proposta de valor, como funciona, recursos, planos, FAQ e o botão **Criar conta grátis** |
+| Entrar · Criar conta · Esqueci a senha | `/login`, `/registro`, `/esqueci-senha` | Conta própria (JWT); o "esqueci a senha" manda um e-mail com a marca, de `no-reply@provapronta.online` |
+| Minhas provas | `/app/provas` | Lista com filtro por turma, selo rascunho/pronta e marca de PDF anexado |
+| Nova / editar prova | `/app/provas/nova`, `/app/provas/:id/editar` | Editor de questões: enunciado, 2 a 5 alternativas, a correta marcada, assunto, reordenar |
+| Detalhe da prova | `/app/provas/:id` | Gabarito destacado, **PDF da apostila** (enviar, abrir, trocar, remover), **gerar versão B** (Pro), apagar |
+| Minhas turmas · Detalhe da turma | `/app/turmas`, `/app/turmas/:id` | Turmas, alunos com nº de chamada, provas da turma |
+| Planos | `/app/planos` | Free, Professor Pro e Escola, com checkout do Stripe (modo de teste) |
+| Perfil | `/app/perfil` | Foto, bio e selo do plano |
+| Admin | `/app/admin` | Usuários e papéis, e os eventos de auditoria do log-service |
 
-Além do tempo: **erro de soma e de digitação** (que vira reclamação de pai e revisão de nota), **prova repetida** que vaza, e nenhum dado de "em qual assunto a turma foi mal" para planejar a recuperação.
+Tema claro e escuro (segue o sistema; troca no menu do avatar) e layout que funciona no celular.
 
-**Como resolve hoje:** Word + livro em PDF + caneta vermelha + planilha. Quem é mais digital usa o ChatGPT para sugerir questões e copia o resultado para o Word, mas a correção continua na mão.
+**Roadmap** (no plano de negócio, ainda não construído): correção por foto do gabarito, geração de questões a partir do PDF e banco de questões.
 
-## 2. Persona
+## 2. Requisitos da atividade 10
 
-> **Marta Ribeiro, 41 anos, professora de Biologia na rede estadual de São Paulo.**
->
-> Dá 32 aulas por semana em **duas escolas**, para 8 turmas do 1º ao 3º ano do ensino médio (~280 alunos). Sai de casa às 6h30, almoça no carro entre uma escola e outra e chega em casa às 19h. Prepara aula e corrige prova à noite e no domingo.
->
-> **O que ela tenta fazer:** aplicar uma prova justa por bimestre, com versões diferentes para fileiras vizinhas, devolver corrigida em uma semana e lançar as notas antes do conselho de classe.
->
-> **O que atrapalha:**
-> - Cada prova nova leva uma noite inteira de Word, e o livro didático está em PDF que ela não consegue copiar direito.
-> - A pilha de 280 provas ocupa dois domingos. Ela já errou soma e teve que refazer nota na frente do aluno.
-> - Os alunos não têm celular ou computador para fazer prova on-line na escola, então Google Forms não resolve: a prova **tem que ser em papel**.
-> - Ela usa o celular para tudo, mas não tem tempo de aprender ferramenta complicada.
->
-> **Frase dela:** *"Eu não me importo de montar a prova. O que me mata é corrigir."*
-
-## 3. Concorrentes e alternativas
-
-| Alternativa | O que faz bem | O que faz mal para a Marta |
+| # | Requisito | Onde está |
 |---|---|---|
-| **O jeito de sempre** (Word + caneta + planilha) | Grátis, ela já sabe usar | Leva ~34 h por bimestre; erro de soma e digitação; nenhum dado sobre o desempenho da turma |
-| **ChatGPT / Gemini** | Sugere questões a partir de um texto | Pode inventar alternativa ou fato (sem mostrar de onde tirou); não monta versões A/B nem layout para imprimir; **não corrige nada**; não guarda banco de questões por turma |
-| **ZipGrade** e apps de leitura de gabarito | Corrige múltipla escolha pela câmera | Só lê gabarito: não gera a prova a partir do material dela, não monta versões A/B com o conteúdo, não corrige dissertativa; a identificação do aluno depende de ele preencher o próprio número na folha |
-| **Plickers** | Resposta rápida com cartões e câmera | Serve para enquete em sala, não para prova; só múltipla escolha com até 4 opções; não gera prova escrita |
-| **Google Forms (quiz)** | Nota automática | Exige celular ou computador por aluno, que a escola pública não tem; prova on-line facilita cola |
-| **Bancos de questões prontos** (sites, material da editora) | Muitas questões já revisadas | Não usam o material que **ela** deu em sala; questões conhecidas pelos alunos; não corrigem |
+| R1 | Stack aponta para o repositório novo | Stack do Portainer recriada apontando para este repositório (Portainer CE não deixa editar a URL do Git; a stack foi recriada com o mesmo nome, mantendo os volumes). GitOps: [`docker-compose.portainer.yml`](docker-compose.portainer.yml) |
+| R2 | ≥ 3 tabelas de domínio com FK, por migration + seed versionados | `turmas`, `alunos`, `provas`, `questoes` em [`db/001_dominio.sql`](db/001_dominio.sql), aplicado pela migration [`a7c9e1f3b5d7`](alembic/versions/a7c9e1f3b5d7_dominio_provapronta.py); seed em [`db/002_seed_dominio.sql`](db/002_seed_dominio.sql) |
+| R3 | CRUD do recurso principal | `/provas` e `/turmas` (listar, criar, detalhar, editar, apagar) — [`app/routers/provas.py`](app/routers/provas.py), [`app/routers/turmas.py`](app/routers/turmas.py) |
+| R4 | Telas de listar, criar, detalhe e editar | Provas e turmas no Angular — [`frontend/src/app/features/provas`](frontend/src/app/features/provas), [`features/turmas`](frontend/src/app/features/turmas) |
+| R5 | ≥ 3 papéis, ação proibida dá 403 mesmo pela API | [Seção 5](#5-papéis-e-permissões-403) — `require_papel_minimo` em [`app/auth/dependencies.py`](app/auth/dependencies.py) e limites do Free em [`app/services/planos.py`](app/services/planos.py) |
+| R6 | Isolamento por usuário: recurso de outro dá 403/404 | [Seção 6](#6-isolamento-por-usuário-404) — `get_owned_or_404` em [`app/routers/_ownership.py`](app/routers/_ownership.py) |
+| R7 | Eventos de negócio no log-service | [Seção 7](#7-eventos-de-auditoria) |
+| R8 | Upload no MinIO/Garage ligado a um registro | PDF da apostila ligado à prova — [Seção 8](#8-upload-no-object-storage) |
+| R9 | Landing pública com proposta de valor e cadastro | [`/`](https://leonardo-oliveira-isw055.lapps.studio) — [`features/landing`](frontend/src/app/features/landing) |
+| R10 | Nada do domínio anterior no código ou nas telas; variável da API externa removida da stack | Telas, serviços, rotas, modelos e testes do domínio anterior removidos; a variável da API externa saiu do compose e do Portainer; bucket, banco do CI e painel do Grafana renomeados |
 
-## 4. Proposta de valor
+Os testes automatizados cobrem R3, R5, R6, R7 e R8 (`tests/test_turmas.py`, `tests/test_provas.py`, `tests/test_material.py`), e o smoke test do CI sobe a stack inteira e repete o fluxo de verdade: cria turma, cria prova, envia o PDF, abre pelo link pré-assinado, outro usuário leva 404 e o Free leva 403 na versão B ([`scripts/smoke-test.sh`](scripts/smoke-test.sh)).
 
-**O ProvaPronta é o único que faz a prova a partir do material que você deu em sala e a corrige pela foto do celular, já sabendo de quem é cada folha — a professora gasta o domingo com a família, não com a pilha de provas.**
+## 3. Arquitetura
 
-## 5. Modelo de receita com Stripe
+```mermaid
+flowchart LR
+    U(["Navegador<br/>SPA Angular"])
 
-Assinatura mensal, cobrada pelo Stripe (a mesma integração da atividade 7: checkout hospedado + webhook assinado).
+    subgraph SaaS["SaaS: produtos de terceiros"]
+        STRIPE["Stripe<br/>checkout + webhook"]
+        RESEND["Resend (SMTP)<br/>provapronta.online"]
+    end
 
-| Plano | Preço | Para quem | Limites |
-|---|---|---|---|
-| **Free** | **R$ 0** | Professor experimentando | 1 turma (até 40 alunos) · 2 provas por mês · só **múltipla escolha** · correção por foto incluída · 3 PDFs de material |
-| **Pro** | **R$ 29,90/mês** | Professor com várias turmas | Turmas e provas ilimitadas · versões A/B embaralhadas · banco de questões reaproveitável · **geração de questões a partir do PDF** · **dissertativa com nota recomendada** (até 600 correções com IA por mês) · exportar notas em planilha |
-| **Escola** | **R$ 199,90/mês** | Coordenação pedagógica | Tudo do Pro para até 15 professores · coordenador revisa e aprova a prova antes de imprimir · relatório por turma e por assunto · histórico auditado de alteração de nota |
+    subgraph VM["VM da disciplina · Docker · stack no Portainer (GitOps)"]
+        subgraph NET["rede interna catalog-net"]
+            API["<b>api</b> :8000<br/>FastAPI + Angular estático<br/>turmas, provas, perfis, planos<br/>ÚNICA porta publicada"]
+            AUTH["<b>auth-service</b> :8001<br/>usuários, login, JWT,<br/>papéis, reset de senha"]
+            LOG["<b>log-service</b> :8002<br/>auditoria"]
+            REDIS[("Redis<br/>Stream audit_log")]
+            GARAGE[("Garage :3900<br/>object storage S3<br/>bucket privado provapronta-arquivos")]
+        end
+    end
 
-**Por que o Free limita isso:** a correção de múltipla escolha por foto é visão computacional clássica e custa quase nada para rodar — por isso entra no Free e é ela que faz a professora experimentar. O que custa dinheiro por uso é a **IA** (gerar questões e ler resposta escrita à mão) e o volume de turmas: isso é Pro.
+    MYSQL[("MySQL remoto<br/>instância da disciplina")]
 
-**Por que a Marta pagaria o Pro:** R$ 29,90 é menos de R$ 1 por dia. Se o ProvaPronta devolver **um** dos dois domingos de correção por bimestre, ela recupera umas 15 horas — e com 8 turmas o Free (1 turma) não dá conta. A conversão vem naturalmente na primeira semana de provas.
+    U -- "HTTPS *.lapps.studio" --> API
+    U -. "redireciona pro checkout" .-> STRIPE
+    STRIPE -- "webhook assinado" --> API
+    API -- "Checkout Session" --> STRIPE
+    API -- "/auth/* (proxy) +<br/>troca de papel (token de serviço)" --> AUTH
+    API -- "POST /logs · GET /logs (admin)" --> LOG
+    AUTH -- "POST /logs" --> LOG
+    LOG --> REDIS
+    API -- "PDF da apostila, foto de perfil<br/>(URL pré-assinada)" --> GARAGE
+    AUTH -- "SMTP 587 + STARTTLS" --> RESEND
+    API -- "turmas, alunos, provas, questoes,<br/>perfis, assinaturas" --> MYSQL
+    AUTH -- "usuarios, reset_tokens" --> MYSQL
+```
 
-**Por que uma escola pagaria o Escola:** o coordenador passa a ver todas as provas antes da impressão, sabe em qual assunto cada turma foi mal (para planejar a recuperação) e tem o registro de **quem alterou qual nota, de quanto para quanto e quando** — a resposta para "por que a nota do meu filho mudou?".
-
-## 6. Métricas de sucesso
-
-| Métrica | O que mede | Meta nos 3 primeiros meses |
+| Serviço | Pasta · imagem (GHCR) | Responsabilidade |
 |---|---|---|
-| **Cadastros** | Professores que criaram conta | 150 |
-| **Ativação** | % dos cadastrados que corrigiram a 1ª prova por foto em até 7 dias (o "momento aha") | 40% |
-| **Assinantes Pro / Escola** | Pagantes ativos | 15 Pro + 1 Escola |
-| **MRR** (receita recorrente mensal) | Soma das assinaturas ativas | 15 × R$ 29,90 + R$ 199,90 = **R$ 648,40** |
-| **Conversão Free → Pro** | % dos ativos que assinam | 10% |
-| **Retenção / churn** | % de assinantes que continuam no mês seguinte | ≥ 85% (o uso é sazonal: pico no fim do bimestre — quem cancela entre bimestres conta como churn) |
-| **Provas corrigidas por mês** | Uso real do produto | 2.000 folhas |
-| **Tempo médio de correção por folha** | Prova de que a dor foi resolvida | < 10 s (contra ~2 min na mão) |
+| **api** | `app/` + `frontend/` · `provapronta` | Porta de entrada pública: serve o Angular, a API do negócio (turmas, alunos, provas, PDF, versão B), perfis, planos e admin; repassa `/auth/*` e os arquivos do Garage |
+| **auth-service** | `auth-service/` · `provapronta-auth` | Cadastro, login, JWT, papéis, redefinição de senha por e-mail |
+| **log-service** | `log-service/` · `provapronta-log` | Grava e devolve os eventos de auditoria (Redis Stream `audit_log`) |
+| **Garage** | `garage/` · `provapronta-garage` | Object storage S3 com bucket privado |
+| **Redis** | `redis:7-alpine` | Guarda o log de auditoria |
+| **MySQL** | fora da stack | Banco da disciplina, compartilhado pelos dois serviços, cada um com o seu histórico do Alembic |
 
-Todas saem de dados que a arquitetura já registra: cadastros e papéis no `auth-service`, assinaturas na tabela `assinaturas` (webhook do Stripe), eventos de uso no log de auditoria (`prova_corrigida`, `nota_alterada`) e latência no Prometheus.
+**Equivalências com o enunciado:** o object storage é o **Garage** no lugar do MinIO (mesma API S3; o código usa `boto3` puro e trocar seria só configuração) e o banco é o **MySQL remoto** da disciplina no lugar do MariaDB.
 
-## 7. Lean Canvas
+**Camadas de nuvem:** a VM da disciplina é **IaaS**; os containers (api, auth-service, log-service, Redis, Garage), o MySQL da disciplina e o GitHub Actions são **PaaS** (eu entrego imagem e workflow, a plataforma roda); Stripe, Resend, GitHub/GHCR e o proxy HTTPS do domínio são **SaaS**.
 
-| Bloco | ProvaPronta |
+## 4. Domínio: tabelas, migration e seed
+
+```mermaid
+erDiagram
+    TURMAS ||--o{ ALUNOS : "turma_id (FK, CASCADE)"
+    TURMAS ||--o{ PROVAS : "turma_id (FK, RESTRICT)"
+    PROVAS ||--o{ QUESTOES : "prova_id (FK, CASCADE)"
+    PROVAS ||--o| PDF_GARAGE : "material_key"
+
+    TURMAS {
+        int id PK
+        int usuario_id "dono (do JWT)"
+        varchar nome
+        varchar disciplina
+        varchar escola
+        int ano_letivo
+    }
+    ALUNOS {
+        int id PK
+        int turma_id FK
+        varchar nome
+        int numero_chamada "único por turma"
+    }
+    PROVAS {
+        int id PK
+        int usuario_id "dono (do JWT)"
+        int turma_id FK
+        varchar titulo
+        date data_aplicacao
+        varchar status "rascunho | pronta"
+        varchar material_key "chave no Garage"
+        varchar material_nome
+    }
+    QUESTOES {
+        int id PK
+        int prova_id FK
+        int ordem
+        text enunciado
+        json alternativas "2 a 5"
+        int resposta_correta "índice"
+        varchar assunto
+    }
+    PDF_GARAGE {
+        string chave "materiais/{usuario}/{prova}/{uuid}.pdf"
+    }
+```
+
+- **DDL versionado:** [`db/001_dominio.sql`](db/001_dominio.sql), aplicado pela migration do Alembic [`a7c9e1f3b5d7`](alembic/versions/a7c9e1f3b5d7_dominio_provapronta.py) (que lê o `.sql`), com `downgrade` que apaga as quatro tabelas.
+- **Regras no banco:** apagar a turma leva os alunos junto (`CASCADE`), mas **não** apaga provas (`RESTRICT`; a API responde `409`). Apagar a prova leva as questões junto, e a API apaga o PDF no Garage depois do commit.
+- **Seed:** [`db/002_seed_dominio.sql`](db/002_seed_dominio.sql) cria a professora Marta (Pro), a turma, 5 alunos, uma prova pronta com 3 questões e um rascunho. Pode rodar de novo: apaga e recria só os dados dela.
+
+## 5. Papéis e permissões (403)
+
+Os papéis formam uma escada, cada um inclui os anteriores: `professor` (Free) < `professor_pro` < `coordenador` (Escola) < `admin`. O papel vem **só** do claim `role` do JWT, e quem barra é a API — as telas apenas escondem botões.
+
+| Ação | Free (`professor`) | `professor_pro` | `coordenador` | `admin` |
+|---|---|---|---|---|
+| Turmas, alunos, provas, PDF (CRUD dos próprios) | ✅ até 1 turma e 2 provas/mês | ✅ ilimitado | ✅ ilimitado | ✅ |
+| Criar a 2ª turma / a 3ª prova do mês | **403** `acesso_negado:limite_free:*` | ✅ | ✅ | ✅ |
+| `POST /provas/{id}/versao-b` | **403** `Ação exige papel 'professor_pro' ou superior` | ✅ | ✅ | ✅ |
+| `GET /admin/logs`, `/auth/admin/users` | **403** | **403** | **403** | ✅ |
+
+Os planos pagos são vendidos pelo Stripe: o webhook assinado troca o papel no auth-service (`professor` → `professor_pro` ou `coordenador`). Testes: `tests/test_provas.py` (versão B e limite de provas), `tests/test_turmas.py` (limite de turmas) e `tests/test_premium_*.py`.
+
+## 6. Isolamento por usuário (404)
+
+Toda consulta do domínio filtra pelo dono **na query** (`usuario_id` do JWT), nunca pela tela. Turma ou prova de outro professor responde **`404`**, como se não existisse (`403` revelaria que o ID existe):
+
+- `GET/PATCH/DELETE /provas/{id}`, `/provas/{id}/material`, `/provas/{id}/versao-b` e `/turmas/{id}` de outra pessoa → `404`;
+- criar prova numa turma de outra pessoa → `404`;
+- `GET /provas?turma_id=<de outra pessoa>` → lista vazia;
+- aluno não tem dono próprio: é da turma, e a turma é conferida pelo dono antes de adicionar ou remover.
+
+O PDF tem a mesma regra: o link pré-assinado só é gerado para o dono da prova. Testes: `test_*_de_outro_*` em `tests/test_turmas.py`, `tests/test_provas.py` e `tests/test_material.py`.
+
+## 7. Eventos de auditoria
+
+A api e o auth-service mandam `POST /logs` para o log-service (fire-and-forget: se ele cair, a ação do usuário continua). Cada evento tem `usuario_id`, `acao`, `timestamp` (UTC) e `ip`. Só admin consulta (`GET /admin/logs`, ou a aba **Eventos de auditoria** do painel).
+
+| Evento | Quando |
 |---|---|
-| **Problema** | 1. Corrigir centenas de provas em papel leva dois fins de semana por bimestre, com erro de soma e de digitação. 2. Montar prova nova a partir do próprio material (PDF) é lento, e a prova antiga vaza. 3. O professor não sabe em qual assunto a turma foi mal. *Hoje:* Word, caneta vermelha, planilha e ChatGPT copiado para o Word. |
-| **Segmentos de clientes** | Professores do fundamental II e médio com muitas turmas e prova em papel. **Primeiros a adotar:** professores da rede estadual de SP que já usam o celular em sala e dão aula em mais de uma escola; coordenadores de escolas particulares pequenas. |
-| **Proposta única de valor** | A prova sai do seu material e se corrige pela foto do celular, sabendo de quem é cada folha. |
-| **Solução** | 1. **Correção por foto:** folha de resposta com QR code por aluno e marcas de alinhamento; a foto vira nota recomendada. 2. **Geração de prova a partir do PDF:** questões com o trecho de origem, versões A/B e gabarito. 3. **Notas por turma e por assunto**, com histórico auditado de alteração. |
-| **Canais** | Grupos de professores no WhatsApp e no Facebook; perfis de "professor que ensina professor" no Instagram e no YouTube; coordenadores pedagógicos (um coordenador traz a escola inteira); indicação (professor convida colega e ganha 1 mês de Pro); parceria com ETECs e escolas da região. |
-| **Fontes de receita** | Assinatura mensal pelo Stripe: **Pro R$ 29,90** (professor) e **Escola R$ 199,90** (coordenação). O Free é o funil. |
-| **Estrutura de custos** | Infraestrutura: hoje a VM da disciplina (custo zero); em produção comercial, uma VM pequena + storage S3. **API de IA por uso** (gerar questão e ler dissertativa — o principal custo variável, por isso fica no Pro e tem limite). Taxas do Stripe por cobrança. E-mail transacional. Domínio. Tempo de desenvolvimento e suporte. |
-| **Métricas-chave** | Cadastros, ativação (1ª prova corrigida por foto em 7 dias), assinantes Pro/Escola, MRR, conversão Free → Pro, churn mensal, folhas corrigidas por mês. |
-| **Vantagem injusta** | Banco de questões que cresce com o uso: cada questão aprovada por um professor fica ligada ao trecho do material de onde veio, por disciplina e série — quanto mais professores, melhores as questões sugeridas. Acesso direto a professores e alunos de Fatec/ETEC para testar cedo. Arquitetura já pronta (pagamento, auditoria, storage), que deixa o tempo todo para o problema do professor. |
+| `turma_criada:{id}`, `turma_editada:{id}`, `turma_removida:{id}` | CRUD de turma |
+| `aluno_adicionado:turma:{t}:aluno:{a}`, `aluno_removido:turma:{t}:aluno:{a}` | Alunos da turma |
+| `prova_criada:{id}`, `prova_editada:{id}`, `prova_removida:{id}` | CRUD de prova |
+| `prova_versao_b:{original}:nova:{nova}` | Versão B gerada (Pro) |
+| `material_enviado:prova:{id}`, `material_removido:prova:{id}` | PDF da apostila |
+| `acesso_negado:{papel}`, `acesso_negado:limite_free:{turmas\|provas}`, `acesso_negado:admin`, `acesso_negado:perfil:{id}` | Toda ação barrada com 403 |
+| `abrir_checkout:{plano}`, `plano_ativado:{plano}`, `plano_cancelado:{plano}` | Assinatura (Stripe) |
+| `login`, `logout`, `atualizar_perfil`, `upload_foto_perfil` | Conta e perfil |
 
-## 8. Mapa de reaproveitamento
+## 8. Upload no object storage
 
-Nada da arquitetura vai pro lixo. Cada peça do catálogo de filmes ganha um papel no ProvaPronta:
+O **PDF da apostila** fica ligado à prova:
 
-| Peça do projeto atual | O que vira no SaaS | No ProvaPronta |
-|---|---|---|
-| Catálogo de filmes (TMDB, ao vivo) | Recurso principal do negócio | **Turmas, alunos, provas e questões** — agora no MySQL, porque o dado é do professor (a integração com a TMDB sai) |
-| Quiz do pôster pixelado (4 opções, correção no servidor, `round_id` assinado) | Motor da múltipla escolha | **Questão de múltipla escolha**: alternativas embaralhadas por versão, gabarito que nunca vai para o cliente, correção sempre no servidor |
-| Favoritos | Coleção pessoal | **Banco de questões** do professor (questões salvas para reaproveitar) |
-| Comentários (com moderação do admin) | Revisão | **Comentário do coordenador** numa questão antes de aprovar a prova |
-| Microsserviço de login (`auth-service`) | Contas | Conta do professor e do coordenador; cadastro, login, JWT |
-| RBAC (escada `cinefilo < nerd < stalker_do_tomhanks < admin`) | Papéis do negócio | `professor` (Free) < `professor_pro` < `coordenador` (Escola) < `admin`. Mesma escada, mesma dependência `require_papel_minimo` |
-| Esqueci minha senha + e-mail (Mailtrap/Brevo) | E-mail transacional | Recuperação de senha; **aviso "provas corrigidas, notas prontas para revisar"**; convite do coordenador para o professor |
-| Logs e auditoria (`log-service` + Redis Streams) | Eventos de negócio | `prova_criada`, `prova_aprovada`, `folhas_impressas`, `prova_corrigida`, **`nota_alterada` (de → para, por quem)**, `pdf_enviado`, acesso negado |
-| Upload e perfil (Garage, S3, bucket privado) | Arquivos do domínio | **PDFs de material**, **fotos das folhas de resposta**, PDF da prova gerada; foto de perfil continua |
-| URL pré-assinada + repasse pelo catálogo (`storage_proxy`) | Acesso seguro a arquivo | Só o professor da turma abre a foto da prova do aluno, por link que expira (LGPD) |
-| Validação de imagem (Pillow: tipo pelos bytes, tamanho, EXIF removido) | Entrada de foto | Mesma validação para a foto da folha (e EXIF/GPS removido do celular do professor) |
-| Plano Premium (Stripe: checkout, webhook assinado, papel trocado) | Assinatura | **Pro** e **Escola**: o webhook troca `professor` → `professor_pro` / `coordenador`, exatamente como trocava `cinefilo` → `nerd` |
-| Perfil público com selo do plano | Perfil | Perfil do professor com selo Pro e disciplinas |
-| Painel de admin (usuários, papéis, log) | Operação | Suporte: ver contas, planos e eventos |
-| Swagger / OpenAPI | API documentada | API de turmas, provas e correção documentada em `/docs` |
-| CI/CD (GitHub Actions + GHCR + GitOps no Portainer) | Deploy a cada push | Continua; imagens renomeadas para `provapronta-*` na atividade 10 |
-| Observabilidade (`/health`, `/metrics`, Prometheus, Grafana) | Saúde do serviço | Mais um painel: tempo de correção por folha e fila de correção |
-| Documentação reversa (atividade 8, [DOCUMENTACAO.md](DOCUMENTACAO.md)) | Base da documentação | Ponto de partida para documentar o domínio novo |
+1. `POST /provas/{id}/material` (multipart) — até **10 MB**; o tipo é conferido pelos bytes (`%PDF-`), não pela extensão (um `.exe` renomeado leva `415`).
+2. O arquivo vai para o bucket privado `provapronta-arquivos`, na chave `materiais/{usuario_id}/{prova_id}/{uuid}.pdf`, gerada pelo servidor. O MySQL guarda só a chave (`provas.material_key`) e o nome original para exibir.
+3. `GET /provas/{id}/material` devolve uma **URL pré-assinada** que expira; o navegador abre pelo próprio domínio do site e a api repassa para o Garage (`app/routers/storage_proxy.py`). Sem a assinatura, o Garage recusa.
+4. Trocar o PDF apaga o antigo; apagar a prova apaga o PDF.
 
-**Infraestrutura:** igual. Mesma stack no Portainer, mesmos serviços, mesmo subdomínio. A troca da stack para este repositório é a atividade 10.
+A foto de perfil segue o mesmo caminho (JPEG/PNG/WEBP até 2 MB, redimensionada e sem EXIF).
 
-## 9. Privacidade (LGPD)
+## 9. Como rodar
 
-O ProvaPronta trata dados de alunos, muitos deles **menores de idade** — dado que a LGPD manda tratar no melhor interesse da criança e do adolescente. Por isso, desde o plano:
-- **Mínimo de dado:** do aluno, só nome, turma e número de chamada. Nada de CPF, e-mail ou foto do aluno.
-- **Quem vê:** só o professor da turma (e o coordenador da escola, no plano Escola). A checagem é no backend, pelo papel do JWT — a mesma regra de "só o dono edita o próprio perfil" da atividade 6.
-- **Fotos das provas:** bucket privado, abertas só por URL pré-assinada que expira; removidas automaticamente depois do fim do ano letivo.
-- **Rastro:** toda leitura e alteração de nota fica no log de auditoria.
-- **Material do professor:** o PDF é dele, fica privado e nunca é compartilhado com outros usuários nem usado para gerar prova de outra pessoa.
+### Tudo com Docker Compose (recomendado)
 
-## Backlog
+```bash
+cp .env.example .env        # preencha: DATABASE_URL, JWT_SECRET, SMTP_*, GARAGE_RPC_SECRET, S3_*, GRAFANA_ADMIN_PASSWORD
+docker compose up -d --build
+docker compose run --rm migrate        # api: domínio, perfis, assinaturas
+docker compose run --rm migrate-auth   # auth-service: usuarios, papéis, reset_tokens
+mysql -h HOST -u USUARIO -p BANCO < db/002_seed_dominio.sql   # opcional: conta da Marta
+```
 
-As próximas entregas estão nas [issues deste repositório](https://github.com/leonardoricci-tsi/ProvaPronta/issues) — o roteiro das atividades 10 (o negócio no ar) e 11 (a assinatura com Stripe). A geração de questões e a correção de dissertativa por IA ficam marcadas como `roadmap`, depois do MVP.
+- Site e API em http://localhost:8000 (Swagger em `/docs`); Grafana em http://127.0.0.1:3000 com o painel "ProvaPronta — saúde e métricas".
+- Só a `api` publica porta; auth-service, log-service, Redis e Garage ficam na rede interna.
+- O Garage cria a chave e o bucket `provapronta-arquivos` sozinho no primeiro boot.
+- Para desenvolver o Angular com hot-reload: `cd frontend && npm install && npm start` (http://localhost:4200, com proxy para a `:8000`).
 
-## Documentação técnica herdada
+### Testes
 
-O README técnico do catálogo de filmes (arquitetura, como rodar, endpoints, CI/CD, observabilidade, evidências das atividades 1 a 8) foi movido sem alterações para [docs/README-catalogo-filmes.md](docs/README-catalogo-filmes.md). A documentação reversa da atividade 8 está em [DOCUMENTACAO.md](DOCUMENTACAO.md). Ambos descrevem o código como ele está hoje, até a troca começar na atividade 10.
+```bash
+pytest -q                                   # api: SQLite em memória, auth/log mockados (respx)
+cd log-service && python -m pytest -q       # log-service: fakeredis
+cd frontend && npx ng test --watch=false    # frontend
+scripts/smoke-test.sh http://localhost:8000 # stack inteira de pé (o mesmo do CI)
+```
+
+## 10. Deploy em produção
+
+`git push` na `main` → o GitHub Actions roda os testes, builda as 4 imagens, sobe a stack inteira num smoke test com um MySQL descartável, publica no GHCR com a tag `sha-xxxxxxx` e faz um commit `deploy: sha-xxxxxxx [skip ci]` apontando o [`docker-compose.portainer.yml`](docker-compose.portainer.yml) para essas tags. O Portainer (GitOps, a cada 5 min) percebe a mudança e recria os containers. Por causa desse commit automático, faça `git pull --rebase` antes de cada `git push`.
+
+**Migrations em produção** são manuais, depois do deploy: Portainer → Containers → container da `api` → Console (`bash`) → `alembic upgrade head`; o mesmo no container do `auth-service` quando houver migration nova nele. A seed roda uma vez, com o cliente `mysql` apontando para o banco da disciplina.
+
+**Segredos** ficam só nas variáveis de ambiente da stack no Portainer (`DATABASE_URL`, `JWT_SECRET`, `SMTP_*`, `GARAGE_RPC_SECRET`, `S3_*`, `STRIPE_*`), nunca no repositório. E-mail em produção: Resend por SMTP, com o domínio `provapronta.online` verificado (DKIM, SPF e DMARC).
+
+## 11. Documentação
+
+- [Plano de negócio](docs/plano-de-negocio.md) — dor, persona, concorrentes, proposta de valor, receita, métricas, Lean Canvas e LGPD (atividade 9).
+- [Documentação do sistema](DOCUMENTACAO.md) — especificação, arquitetura, regras de negócio com o arquivo de origem e modelo de dados.
+- API: `/docs` (Swagger) na api; contratos internos em [`docs/openapi/`](docs/openapi).
