@@ -49,7 +49,7 @@ services:
       # trocados no Portainer sem mexer no código.
       LLM_API_KEY: ${LLM_API_KEY:-}
       LLM_BASE_URL: ${LLM_BASE_URL:-https://api.groq.com/openai/v1}
-      LLM_MODEL: ${LLM_MODEL:-llama-3.3-70b-versatile}
+      LLM_MODEL: ${LLM_MODEL:-openai/gpt-oss-120b}
       CATALOG_PUBLIC_URL: ${CATALOG_PUBLIC_URL}
     # Readiness de verdade (GET /health do catálogo): com o MySQL fora ele
     # responde 503 e o `docker ps` passa a mostrar (unhealthy). Python/urllib

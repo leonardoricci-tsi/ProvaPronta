@@ -128,8 +128,11 @@ RESP_ERROS_GERACAO = {
         "PDF sem texto extraível (ex.: escaneado)",
         "O PDF não tem texto suficiente para gerar questões",
     ),
-    502: _erro("O provedor de IA falhou ou devolveu algo inaproveitável", "A IA não devolveu questões válidas. Tente de novo."),
-    503: _erro("Chave da IA não configurada neste ambiente", "Geração de questões com IA não configurada neste ambiente"),
+    503: _erro(
+        "IA não configurada, fora do ar, no limite de uso ou com resposta inaproveitável; ou Garage fora "
+        "(503 e não 502: o Cloudflare troca 502 da origem pela página dele)",
+        "O serviço de IA recusou o pedido. Tente de novo em instantes.",
+    ),
 }
 
 RESP_ERROS_MATERIAL = {

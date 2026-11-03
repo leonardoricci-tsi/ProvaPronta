@@ -266,10 +266,13 @@ def gerar_questoes_do_pdf(
     dados = dados or GerarQuestoesIn()
     prova = get_owned_or_404(db, Prova, prova_id, usuario_atual.id)
     fontes = _fontes_da_geracao(db, prova, dados, usuario_atual.id)
+    # Falha de serviço de fora (Garage, IA) responde 503, não 502: o
+    # Cloudflare na frente do site troca todo 502 da origem pela página de
+    # erro dele, e a mensagem pro professor se perderia.
     try:
         arquivos = [(nome, storage.baixar_objeto(chave)) for nome, chave in fontes]
     except storage.StorageUnavailable as erro:
-        raise HTTPException(status_code=status.HTTP_502_BAD_GATEWAY, detail=str(erro)) from erro
+        raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail=str(erro)) from erro
     try:
         texto = gerador_questoes.extrair_texto_de_varios(arquivos)
         questoes = gerador_questoes.gerar_questoes(texto, dados.quantidade, prova.turma.disciplina)
@@ -278,7 +281,7 @@ def gerar_questoes_do_pdf(
     except gerador_questoes.GeracaoIndisponivel as erro:
         raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail=str(erro)) from erro
     except gerador_questoes.FalhaNaGeracao as erro:
-        raise HTTPException(status_code=status.HTTP_502_BAD_GATEWAY, detail=str(erro)) from erro
+        raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail=str(erro)) from erro
 
     log_client.registrar_evento(
         usuario_atual.id,

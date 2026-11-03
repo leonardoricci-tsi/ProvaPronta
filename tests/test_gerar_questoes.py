@@ -105,6 +105,8 @@ def test_gera_sugestoes_a_partir_do_texto_do_pdf(client, garage_falso, ia, auth_
     assert ia.calls.last.request.headers["authorization"] == "Bearer chave-de-teste"
     assert pedido["model"] == get_settings().llm_model
     assert pedido["response_format"] == {"type": "json_object"}
+    # Padrão é o GPT OSS (Groq): raciocínio curto pra responder rápido.
+    assert pedido["reasoning_effort"] == "low"
     mensagem = pedido["messages"][1]["content"]
     assert "Crie 3 questões" in mensagem and "Biologia" in mensagem and "mitocôndria" in mensagem
     # Sugestão não é gravada: a prova continua sem questões.
@@ -193,11 +195,36 @@ def test_sem_chave_configurada_da_503(client, garage_falso, auth_service, monkey
         Response(200, json={"choices": [{"message": {"content": "{\"questoes\": []}"}}]}),
     ],
 )
-def test_falha_do_provedor_vira_502(client, garage_falso, ia, resposta_do_provedor):
+def test_falha_do_provedor_vira_503(client, garage_falso, ia, resposta_do_provedor):
     ia.mock(return_value=resposta_do_provedor)
     token = criar_token(role="professor_pro")
     prova = prova_com_pdf(client, token)
 
     resposta = client.post(f"/provas/{prova['id']}/gerar-questoes", headers=auth_headers(token))
 
-    assert resposta.status_code == 502
+    # 503, não 502: o Cloudflare troca 502 da origem pela página dele.
+    assert resposta.status_code == 503
+    assert "IA" in resposta.json()["detail"]
+
+
+def test_aceita_json_embrulhado_em_bloco_de_codigo(client, garage_falso, ia):
+    embrulhado = "Aqui estão as questões:\n```json\n" + json.dumps({"questoes": [QUESTAO_BOA]}) + "\n```"
+    ia.mock(return_value=Response(200, json={"choices": [{"message": {"content": embrulhado}}]}))
+    token = criar_token(role="professor_pro")
+    prova = prova_com_pdf(client, token)
+
+    resposta = client.post(f"/provas/{prova['id']}/gerar-questoes", headers=auth_headers(token))
+
+    assert resposta.status_code == 200
+    assert resposta.json()["questoes"] == [QUESTAO_BOA]
+
+
+def test_reasoning_effort_so_vai_para_modelos_gpt_oss(client, garage_falso, ia, monkeypatch):
+    monkeypatch.setattr(get_settings(), "llm_model", "claude-qualquer")
+    ia.mock(return_value=resposta_da_ia([QUESTAO_BOA]))
+    token = criar_token(role="professor_pro")
+    prova = prova_com_pdf(client, token)
+
+    client.post(f"/provas/{prova['id']}/gerar-questoes", headers=auth_headers(token))
+
+    assert "reasoning_effort" not in json.loads(ia.calls.last.request.content)

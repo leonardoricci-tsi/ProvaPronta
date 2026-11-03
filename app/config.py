@@ -47,7 +47,7 @@ class Settings(BaseSettings):
     # e quem não configurou continuarem subindo normalmente.
     llm_api_key: str = ""
     llm_base_url: str = "https://api.groq.com/openai/v1"
-    llm_model: str = "llama-3.3-70b-versatile"
+    llm_model: str = "openai/gpt-oss-120b"
     llm_timeout_segundos: float = 60.0
     # Porta interna do /metrics (Prometheus). 0 desliga — usado nos testes.
     metrics_port: int = 9100

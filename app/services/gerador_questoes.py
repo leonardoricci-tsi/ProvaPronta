@@ -49,7 +49,7 @@ class GeracaoIndisponivel(Exception):
 
 
 class FalhaNaGeracao(Exception):
-    """O provedor de IA falhou ou devolveu algo inaproveitável — vira 502."""
+    """O provedor de IA falhou ou devolveu algo inaproveitável — vira 503."""
 
 
 class PdfSemTexto(Exception):
@@ -130,7 +130,7 @@ def extrair_texto_de_varios(arquivos: list[tuple[str, bytes]]) -> str:
 def _pedido(texto: str, quantidade: int, disciplina: str | None) -> dict:
     settings = get_settings()
     contexto = f" da disciplina {disciplina}" if disciplina else ""
-    return {
+    pedido = {
         "model": settings.llm_model,
         "temperature": 0.4,
         "response_format": {"type": "json_object"},
@@ -145,6 +145,26 @@ def _pedido(texto: str, quantidade: int, disciplina: str | None) -> dict:
             },
         ],
     }
+    # Modelos de raciocínio (GPT OSS, no Groq) pensam antes de responder:
+    # esforço baixo basta pra montar questão do material e responde bem
+    # antes do tempo limite do proxy do site. Só pra eles — outro provedor
+    # recusaria o parâmetro.
+    if "gpt-oss" in settings.llm_model:
+        pedido["reasoning_effort"] = "low"
+    return pedido
+
+
+def _json_da_resposta(conteudo: str) -> object:
+    """O JSON pedido. Modelos às vezes embrulham em ```json ... ``` ou põem
+    uma frase antes: nesse caso, fica com o trecho do primeiro "{" ao último
+    "}"."""
+    try:
+        return json.loads(conteudo)
+    except ValueError:
+        inicio, fim = conteudo.find("{"), conteudo.rfind("}")
+        if inicio == -1 or fim <= inicio:
+            raise
+        return json.loads(conteudo[inicio : fim + 1])
 
 
 def _questoes_validas(bruto: object, quantidade: int) -> list[QuestaoIn]:
@@ -195,7 +215,7 @@ def gerar_questoes(texto: str, quantidade: int, disciplina: str | None = None) -
 
     try:
         conteudo = resposta.json()["choices"][0]["message"]["content"]
-        questoes = _questoes_validas(json.loads(conteudo), quantidade)
+        questoes = _questoes_validas(_json_da_resposta(conteudo), quantidade)
     except (KeyError, IndexError, TypeError, ValueError) as erro:
         raise FalhaNaGeracao("A IA devolveu uma resposta em formato inesperado.") from erro
 
