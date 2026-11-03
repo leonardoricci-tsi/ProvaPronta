@@ -80,6 +80,111 @@
       </div>
     </section>
 
+    <section class="cartao" aria-labelledby="t-gerar">
+      <div class="cartao-cab">
+        <h2 class="cartao-titulo" id="t-gerar">Gerar questões com IA</h2>
+        @if (!ehPro) {
+          <span class="selo selo-pro">Pro</span>
+        }
+      </div>
+      @if (provaId && temAlgumPdf) {
+        <p class="suave">
+          Escolha de onde a IA tira o conteúdo — o PDF desta prova, uma pasta inteira da biblioteca ou PDFs avulsos.
+          As questões entram na lista abaixo para você revisar: nada é salvo até clicar em "Salvar prova".
+        </p>
+
+        <fieldset class="pilha" style="border: 0; margin: 0; padding: 0; gap: 10px">
+          <legend class="rotulo" style="margin-bottom: 8px">Fontes</legend>
+          @if (materialNome) {
+            <label class="linha" style="gap: 10px; flex-wrap: nowrap">
+              <input class="checkbox" type="checkbox" [checked]="usarPdfDaProva" (change)="usarPdfDaProva = $any($event.target).checked" />
+              <span>PDF desta prova: <strong>{{ materialNome }}</strong></span>
+            </label>
+          }
+          @for (pasta of pastas(); track pasta.id) {
+            @if (pasta.total_materiais > 0) {
+              <div class="fonte-pasta">
+                <label class="linha" style="gap: 10px; flex-wrap: nowrap">
+                  <input class="checkbox" type="checkbox" [checked]="pastasEscolhidas.has(pasta.id)"
+                    (change)="alternarPasta(pasta, $any($event.target).checked)" />
+                  <app-icone nome="livro" tamanho="p" />
+                  <span><strong>{{ pasta.nome }}</strong> <span class="ajuda">· pasta inteira ({{ pasta.total_materiais }} {{ pasta.total_materiais === 1 ? 'PDF' : 'PDFs' }})</span></span>
+                </label>
+                <div class="pilha" style="gap: 6px; padding-left: 34px">
+                  @for (m of pasta.materiais; track m.id) {
+                    <label class="linha" style="gap: 10px; flex-wrap: nowrap" [class.suave]="pastasEscolhidas.has(pasta.id)">
+                      <input class="checkbox" type="checkbox"
+                        [checked]="pastasEscolhidas.has(pasta.id) || materiaisEscolhidos.has(m.id)"
+                        [disabled]="pastasEscolhidas.has(pasta.id)"
+                        (change)="alternarMaterial(m.id, $any($event.target).checked)" />
+                      <span style="overflow-wrap: anywhere">{{ m.nome }}</span>
+                    </label>
+                  }
+                </div>
+              </div>
+            }
+          }
+        </fieldset>
+
+        <div class="linha">
+          <div class="campo" style="width: 140px">
+            <label for="g-qtd">Quantidade</label>
+            <div class="selecao">
+              <select class="entrada" id="g-qtd" name="quantidadeGerar" [(ngModel)]="quantidadeGerar">
+                @for (n of quantidadesGeracao; track n) {
+                  <option [ngValue]="n">{{ n }} questões</option>
+                }
+              </select>
+              <app-icone nome="setaBaixo" />
+            </div>
+          </div>
+          <button class="btn btn-primario" type="button" style="align-self: flex-end" (click)="gerarDoPdf()"
+            [disabled]="gerando() || totalEscolhidos === 0">
+            @if (gerando()) {
+              <app-icone nome="girando" />
+              Lendo {{ totalEscolhidos === 1 ? 'o PDF' : 'os PDFs' }} e gerando…
+            } @else {
+              <app-icone nome="pdfLinhas" />
+              Gerar questões
+            }
+          </button>
+          <span class="ajuda" style="align-self: flex-end; padding-bottom: 12px">
+            {{ totalEscolhidos === 0 ? 'Escolha ao menos um PDF.' : totalEscolhidos + (totalEscolhidos === 1 ? ' PDF escolhido' : ' PDFs escolhidos') }}
+          </span>
+        </div>
+      } @else if (provaId) {
+        <p class="suave">
+          Anexe o PDF da apostila na <a [routerLink]="['/app/provas', provaId]">página da prova</a> ou envie PDFs para uma pasta em
+          <a routerLink="/app/materiais">Materiais</a> para gerar questões a partir deles.
+        </p>
+      } @else {
+        <p class="suave">Salve a prova para gerar questões a partir dos PDFs da biblioteca ou do PDF da prova.</p>
+      }
+
+      @if (geradas(); as g) {
+        <div class="alerta alerta-sucesso" role="status">
+          <app-icone nome="check" />
+          <div class="alerta-corpo">
+            <strong>{{ g.total }} {{ g.total === 1 ? 'questão sugerida' : 'questões sugeridas' }} a partir de {{ g.fonte }}.</strong>
+            <span>Confira enunciado, alternativas e gabarito antes de salvar: a IA pode errar.</span>
+          </div>
+        </div>
+      }
+      @if (geracaoSoPro()) {
+        <div class="alerta alerta-aviso" role="alert">
+          <app-icone nome="cadeado" />
+          <div class="alerta-corpo">
+            <strong>Gerar questões do PDF é um recurso do Professor Pro.</strong>
+            <span>Suba a apostila e receba as questões prontas para revisar, com gabarito e assunto.</span>
+            <a routerLink="/app/planos">Conhecer o Pro — R$ 29,90/mês</a>
+          </div>
+        </div>
+      }
+      @if (erroGeracao()) {
+        <p class="msg-erro" role="alert"><app-icone nome="erro" tamanho="p" />{{ erroGeracao() }}</p>
+      }
+    </section>
+
     <section class="pilha" aria-labelledby="t-quest" style="gap: 16px">
       <div class="cartao-cab">
         <h2 id="t-quest" style="font-size: 1.375rem">

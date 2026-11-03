@@ -86,3 +86,24 @@ class MaterialOut(BaseModel):
     nome: str
     # URL pré-assinada, temporária — gerada a cada pedido, nunca gravada.
     url: str
+
+
+class GerarQuestoesIn(BaseModel):
+    """De onde a IA tira o conteúdo: pastas inteiras e/ou PDFs avulsos da
+    biblioteca, e/ou o PDF anexado à prova. Sem nenhuma escolha, usa o PDF
+    da prova (o comportamento de antes da biblioteca)."""
+
+    quantidade: int = Field(default=5, ge=1, le=10)
+    pasta_ids: list[int] = Field(default_factory=list, max_length=20)
+    material_ids: list[int] = Field(default_factory=list, max_length=50)
+    usar_pdf_da_prova: bool = False
+
+
+class GerarQuestoesOut(BaseModel):
+    """Sugestões da IA — nada foi gravado. O professor revisa no editor e
+    salva com o PATCH normal da prova."""
+
+    questoes: list[QuestaoIn]
+    # De onde o texto saiu, pra tela mostrar ("apostila.pdf" ou "3 PDFs").
+    fonte: str
+    fontes: list[str]

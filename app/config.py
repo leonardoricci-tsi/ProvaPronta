@@ -40,6 +40,15 @@ class Settings(BaseSettings):
     stripe_webhook_secret: str = ""
     # Pra onde o Stripe manda o navegador de volta depois do checkout.
     catalog_public_url: str = "http://localhost:8000"
+    # Geração de questões a partir do PDF (IA). API no formato da OpenAI
+    # (/chat/completions): o padrão é o Groq; trocar de provedor (ex.: o
+    # Claude, pela camada compatível da Anthropic) é só mudar URL, modelo e
+    # chave. Chave vazia = recurso desligado (a rota responde 503), pra o CI
+    # e quem não configurou continuarem subindo normalmente.
+    llm_api_key: str = ""
+    llm_base_url: str = "https://api.groq.com/openai/v1"
+    llm_model: str = "llama-3.3-70b-versatile"
+    llm_timeout_segundos: float = 60.0
     # Porta interna do /metrics (Prometheus). 0 desliga — usado nos testes.
     metrics_port: int = 9100
 

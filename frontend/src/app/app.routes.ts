@@ -78,6 +78,10 @@ export const routes: Routes = [
         loadComponent: () => import('./features/planos/planos').then((m) => m.Planos),
       },
       {
+        path: 'materiais',
+        loadComponent: () => import('./features/materiais/materiais').then((m) => m.Materiais),
+      },
+      {
         // Plano Escola. O guard só esconde a tela; o 403 é do backend.
         path: 'relatorio',
         canActivate: [roleGuard('coordenador')],

@@ -193,6 +193,13 @@
             </label>
             <button class="btn btn-perigo" type="button" (click)="removerPdf()">Remover</button>
           </div>
+          <a class="btn btn-primario" [routerLink]="['/app/provas', p.id, 'editar']" style="align-self: flex-start">
+            <app-icone nome="pdfLinhas" />
+            Gerar questões do PDF
+            @if (!ehPro) {
+              <span class="selo selo-pro">Pro</span>
+            }
+          </a>
         } @else {
           <p class="suave">Nenhum PDF anexado. Anexe a apostila para abrir na aula ou mandar para a turma.</p>
           <label class="btn btn-secundario" style="align-self: flex-start" [class.ocupado]="enviandoPdf()">

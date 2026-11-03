@@ -4,9 +4,12 @@ import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 
 import { mensagemDoBackend } from '../../../core/http-erro';
+import { AuthService } from '../../../core/services/auth.service';
+import { BibliotecaService } from '../../../core/services/biblioteca.service';
 import { ProvasService } from '../../../core/services/provas.service';
 import { TurmasService } from '../../../core/services/turmas.service';
 import { ProvaPayload, QuestaoPayload, StatusEditavel } from '../../../models/prova.model';
+import { Pasta } from '../../../models/biblioteca.model';
 import { Turma } from '../../../models/turma.model';
 import { Icone } from '../../../shared/icone/icone';
 
@@ -56,6 +59,22 @@ export class ProvaForm implements OnInit {
   status: StatusEditavel = 'rascunho';
   // Editar uma prova aprovada tira a aprovação (o backend volta pra "pronta").
   eraAprovada = false;
+
+  // Geração de questões a partir do PDF anexado (plano Pro).
+  private readonly authService = inject(AuthService);
+  private readonly bibliotecaService = inject(BibliotecaService);
+  readonly quantidadesGeracao = [3, 5, 10];
+  // Fontes: o PDF da prova e/ou pastas inteiras e/ou PDFs avulsos.
+  pastas = signal<Pasta[]>([]);
+  usarPdfDaProva = false;
+  pastasEscolhidas = new Set<number>();
+  materiaisEscolhidos = new Set<number>();
+  materialNome: string | null = null;
+  quantidadeGerar = 5;
+  gerando = signal(false);
+  geracaoSoPro = signal(false);
+  erroGeracao = signal('');
+  geradas = signal<{ total: number; fonte: string } | null>(null);
   questoes: QuestaoEditavel[] = [questaoVazia()];
 
   constructor(
@@ -79,12 +98,16 @@ export class ProvaForm implements OnInit {
     });
 
     if (this.provaId !== null) {
+      this.bibliotecaService.listar().subscribe({ next: (pastas) => this.pastas.set(pastas) });
       this.provasService.ver(this.provaId).subscribe({
         next: (prova) => {
           this.turmaId = prova.turma.id;
           this.titulo = prova.titulo;
           this.dataAplicacao = prova.data_aplicacao ?? '';
           this.eraAprovada = prova.status === 'aprovada';
+          this.materialNome = prova.material_nome;
+          // Com PDF anexado, ele já vem marcado (o comportamento de antes).
+          this.usarPdfDaProva = !!prova.material_nome;
           this.status = prova.status === 'aprovada' ? 'pronta' : prova.status;
           this.questoes = prova.questoes.map((q) => ({
             chave: proximaChave++,
@@ -105,6 +128,72 @@ export class ProvaForm implements OnInit {
     this.erro.set(mensagem);
     this.falhouAoCarregar.set(true);
     this.carregando.set(false);
+  }
+
+  get ehPro(): boolean {
+    return this.authService.temPapelMinimo('professor_pro');
+  }
+
+  alternarPasta(pasta: Pasta, marcada: boolean): void {
+    if (marcada) {
+      this.pastasEscolhidas.add(pasta.id);
+      // A pasta inteira já inclui os PDFs dela.
+      pasta.materiais.forEach((m) => this.materiaisEscolhidos.delete(m.id));
+    } else {
+      this.pastasEscolhidas.delete(pasta.id);
+    }
+  }
+
+  alternarMaterial(id: number, marcado: boolean): void {
+    if (marcado) this.materiaisEscolhidos.add(id);
+    else this.materiaisEscolhidos.delete(id);
+  }
+
+  /** Quantos PDFs vão pra IA (sem contar repetidos). */
+  get totalEscolhidos(): number {
+    const ids = new Set(this.materiaisEscolhidos);
+    for (const pasta of this.pastas()) {
+      if (this.pastasEscolhidas.has(pasta.id)) pasta.materiais.forEach((m) => ids.add(m.id));
+    }
+    return ids.size + (this.usarPdfDaProva && this.materialNome ? 1 : 0);
+  }
+
+  get temAlgumPdf(): boolean {
+    return !!this.materialNome || this.pastas().some((p) => p.total_materiais > 0);
+  }
+
+  gerarDoPdf(): void {
+    if (this.provaId === null || this.totalEscolhidos === 0) return;
+    this.gerando.set(true);
+    this.geracaoSoPro.set(false);
+    this.erroGeracao.set('');
+    this.geradas.set(null);
+    const fontes = {
+      pasta_ids: [...this.pastasEscolhidas],
+      material_ids: [...this.materiaisEscolhidos],
+      usar_pdf_da_prova: this.usarPdfDaProva && !!this.materialNome,
+    };
+    this.provasService.gerarQuestoes(this.provaId, this.quantidadeGerar, fontes).subscribe({
+      next: ({ questoes, fonte, fontes: nomes }) => {
+        // Uma questão em branco (a do formulário novo) dá lugar às sugestões.
+        const preenchidas = this.questoes.filter(
+          (q) => q.enunciado.trim() || q.alternativas.some((a) => a.trim()),
+        );
+        const sugeridas = questoes.map((q) => ({ ...q, alternativas: [...q.alternativas], chave: proximaChave++ }));
+        this.questoes = [...preenchidas, ...sugeridas].slice(0, MAX_QUESTOES);
+        this.geradas.set({ total: sugeridas.length, fonte: nomes.length > 1 ? `${fonte} (${nomes.join(', ')})` : fonte });
+        this.gerando.set(false);
+      },
+      error: (erro: HttpErrorResponse) => {
+        // 403 = recurso do Pro: a mensagem vira o convite pro plano.
+        if (erro.status === 403) {
+          this.geracaoSoPro.set(true);
+        } else {
+          this.erroGeracao.set(mensagemDoBackend(erro, 'Não foi possível gerar as questões.'));
+        }
+        this.gerando.set(false);
+      },
+    });
   }
 
   adicionarQuestao(): void {

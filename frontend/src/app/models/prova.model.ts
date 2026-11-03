@@ -46,3 +46,17 @@ export interface Material {
   // URL pré-assinada do Garage, temporária — pedir de novo a cada clique.
   url: string;
 }
+
+// Sugestões da IA a partir do PDF — nada é gravado até o professor salvar.
+export interface QuestoesGeradas {
+  questoes: QuestaoPayload[];
+  fonte: string;
+  fontes: string[];
+}
+
+// De onde a IA tira o conteúdo; pode combinar os três.
+export interface FontesGeracao {
+  pasta_ids: number[];
+  material_ids: number[];
+  usar_pdf_da_prova: boolean;
+}

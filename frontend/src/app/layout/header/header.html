@@ -15,6 +15,7 @@
     <nav class="nav" aria-label="Principal">
       <a routerLink="/app/provas" routerLinkActive #rlaProvas="routerLinkActive" [attr.aria-current]="rlaProvas.isActive ? 'page' : null">Provas</a>
       <a routerLink="/app/turmas" routerLinkActive #rlaTurmas="routerLinkActive" [attr.aria-current]="rlaTurmas.isActive ? 'page' : null">Turmas</a>
+      <a routerLink="/app/materiais" routerLinkActive #rlaMat="routerLinkActive" [attr.aria-current]="rlaMat.isActive ? 'page' : null">Materiais</a>
       <a routerLink="/app/planos" routerLinkActive #rlaPlanos="routerLinkActive" [attr.aria-current]="rlaPlanos.isActive ? 'page' : null">Planos</a>
       @if (authService.temPapelMinimo('coordenador')) {
         <a routerLink="/app/relatorio" routerLinkActive #rlaRel="routerLinkActive" [attr.aria-current]="rlaRel.isActive ? 'page' : null">Relatório</a>
@@ -77,6 +78,10 @@
       <a routerLink="/app/turmas" routerLinkActive #gTurmas="routerLinkActive" [attr.aria-current]="gTurmas.isActive ? 'page' : null">
         <app-icone nome="pessoas" />
         Turmas
+      </a>
+      <a routerLink="/app/materiais" routerLinkActive #gMat="routerLinkActive" [attr.aria-current]="gMat.isActive ? 'page' : null">
+        <app-icone nome="livro" />
+        Materiais
       </a>
       <a routerLink="/app/planos" routerLinkActive #gPlanos="routerLinkActive" [attr.aria-current]="gPlanos.isActive ? 'page' : null">
         <app-icone nome="cartao" />

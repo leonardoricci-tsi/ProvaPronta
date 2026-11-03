@@ -123,4 +123,5 @@ def garage_falso(monkeypatch):
     )
     monkeypatch.setattr(storage, "apagar_objeto", lambda chave: objetos.pop(chave, None))
     monkeypatch.setattr(storage, "gerar_url_temporaria", lambda chave: f"http://garage.teste/{chave}?assinada")
+    monkeypatch.setattr(storage, "baixar_objeto", lambda chave: objetos[chave][0])
     return objetos

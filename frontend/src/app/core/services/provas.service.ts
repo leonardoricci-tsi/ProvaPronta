@@ -2,7 +2,14 @@ import { Injectable } from '@angular/core';
 import { HttpClient, HttpParams } from '@angular/common/http';
 import { Observable } from 'rxjs';
 
-import { Material, Prova, ProvaDetalhe, ProvaPayload } from '../../models/prova.model';
+import {
+  FontesGeracao,
+  Material,
+  Prova,
+  ProvaDetalhe,
+  ProvaPayload,
+  QuestoesGeradas,
+} from '../../models/prova.model';
 
 @Injectable({ providedIn: 'root' })
 export class ProvasService {
@@ -37,6 +44,11 @@ export class ProvasService {
   // Só coordenador pra cima (plano Escola): professor e Pro recebem 403.
   aprovar(id: number): Observable<ProvaDetalhe> {
     return this.http.post<ProvaDetalhe>(`/provas/${id}/aprovar`, {});
+  }
+
+  // Plano Pro: a IA lê os PDFs escolhidos e sugere questões (nada é gravado).
+  gerarQuestoes(id: number, quantidade: number, fontes: FontesGeracao): Observable<QuestoesGeradas> {
+    return this.http.post<QuestoesGeradas>(`/provas/${id}/gerar-questoes`, { quantidade, ...fontes });
   }
 
   enviarMaterial(id: number, arquivo: File): Observable<ProvaDetalhe> {

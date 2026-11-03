@@ -433,3 +433,4 @@ button { font: inherit; }
 .indicador strong { font: 800 1.75rem/1.1 var(--fonte-titulo); }
 .barra-assunto { height: 10px; border-radius: var(--raio-pilula); background: var(--cor-primaria); min-width: 4px; }
 .tabela .direita { text-align: right; font-variant-numeric: tabular-nums; }
+.fonte-pasta { display: flex; flex-direction: column; gap: 6px; padding: var(--esp-3); border: 1px solid var(--cor-borda); border-radius: var(--raio-m); background: var(--cor-fundo); }

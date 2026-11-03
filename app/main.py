@@ -9,6 +9,7 @@ from app.config import get_settings
 from app.routers import (
     admin,
     auth,
+    biblioteca,
     coordenacao,
     health,
     premium,
@@ -51,6 +52,7 @@ app.include_router(premium.router)
 app.include_router(turmas.router)
 app.include_router(provas.router)
 app.include_router(coordenacao.router)
+app.include_router(biblioteca.router)
 # Antes do mount de "/": senão o StaticFiles engole o caminho da foto.
 app.include_router(storage_proxy.router)
 

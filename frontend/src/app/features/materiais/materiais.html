@@ -1,0 +1,120 @@
+<div class="cab-pagina">
+  <div class="pilha" style="gap: 6px">
+    <h1>Materiais</h1>
+    <p class="suave">
+      Organize os PDFs da apostila em pastas — por exemplo "1º ano — Matemática — 1º bimestre" — e gere questões
+      a partir de uma pasta inteira, de um PDF ou de vários.
+      @if (ehFree && !carregando()) {
+        {{ totalPdfs }} de {{ limiteFree }} PDFs no plano Free.
+      }
+    </p>
+  </div>
+</div>
+
+<div class="duas-col">
+  <div class="col-principal">
+    @if (carregando()) {
+      <span class="sr-only" role="status">Carregando materiais…</span>
+      <span class="esqueleto" style="height: 160px; border-radius: 16px" aria-hidden="true"></span>
+    } @else if (erroLista()) {
+      <div class="alerta alerta-erro" role="alert">
+        <app-icone nome="erro" />
+        <div class="alerta-corpo"><strong>{{ erroLista() }}</strong></div>
+      </div>
+    } @else if (pastas().length === 0) {
+      <div class="vazio">
+        <span class="vazio-ic"><app-icone nome="livro" tamanho="g" /></span>
+        <h2>Nenhuma pasta ainda</h2>
+        <p>Crie a primeira pasta ao lado e envie os PDFs da apostila. Depois é só escolher a pasta na hora de gerar as questões da prova.</p>
+      </div>
+    } @else {
+      @for (pasta of pastas(); track pasta.id) {
+        <section class="cartao" [attr.aria-label]="'Pasta ' + pasta.nome">
+          <div class="cartao-cab">
+            @if (renomeando() === pasta.id) {
+              <form class="linha" style="flex: 1" (ngSubmit)="salvarNome(pasta)">
+                <label class="sr-only" [for]="'nome-' + pasta.id">Nome da pasta</label>
+                <input class="entrada" style="flex: 1; min-width: 200px" [id]="'nome-' + pasta.id" name="nome"
+                  [(ngModel)]="nomeRascunho" required maxlength="150" />
+                <button class="btn btn-primario" type="submit">Salvar</button>
+                <button class="btn btn-fantasma" type="button" (click)="renomeando.set(null)">Cancelar</button>
+              </form>
+            } @else {
+              <div class="pilha" style="gap: 2px">
+                <h2 class="cartao-titulo">{{ pasta.nome }}</h2>
+                <span class="ajuda">{{ pasta.total_materiais }} {{ pasta.total_materiais === 1 ? 'PDF' : 'PDFs' }}</span>
+              </div>
+              <div class="linha" style="gap: 4px">
+                <label class="btn btn-secundario" [class.ocupado]="enviando()[pasta.id]">
+                  <app-icone nome="enviar" />
+                  {{ enviando()[pasta.id] ? 'Enviando…' : 'Enviar PDFs' }}
+                  <input class="sr-only" type="file" accept="application/pdf,.pdf" multiple
+                    [disabled]="enviando()[pasta.id]" (change)="escolherPdfs(pasta, $event)" />
+                </label>
+                <button class="btn btn-fantasma btn-icone" type="button" [attr.aria-label]="'Renomear ' + pasta.nome"
+                  (click)="comecarRenomear(pasta)"><app-icone nome="editar" /></button>
+                @if (confirmandoApagar() === pasta.id) {
+                  <button class="btn btn-perigo confirmar" type="button" (click)="apagarPasta(pasta)">
+                    Apagar pasta e PDFs
+                  </button>
+                } @else {
+                  <button class="btn btn-fantasma btn-icone btn-perigo-ic" type="button"
+                    [attr.aria-label]="'Apagar ' + pasta.nome" (click)="apagarPasta(pasta)"><app-icone nome="lixo" /></button>
+                }
+              </div>
+            }
+          </div>
+
+          @if (pasta.materiais.length === 0) {
+            <p class="suave">Pasta vazia. Envie um ou vários PDFs de uma vez (até 10 MB cada).</p>
+          } @else {
+            <ul class="lista" style="gap: 8px">
+              @for (material of pasta.materiais; track material.id) {
+                <li class="item" style="padding: 10px 14px">
+                  <span class="pdf-ic" style="width: 36px; height: 36px"><app-icone nome="pdf" tamanho="p" /></span>
+                  <div class="item-principal" style="flex-basis: 160px">
+                    <span class="item-titulo" style="font-size: 1rem; overflow-wrap: anywhere">{{ material.nome }}</span>
+                    <span class="ajuda">{{ material.tamanho_bytes / 1024 | number: '1.0-0' }} KB</span>
+                  </div>
+                  <div class="linha" style="gap: 4px">
+                    <button class="btn btn-fantasma btn-icone" type="button" [attr.aria-label]="'Abrir ' + material.nome"
+                      (click)="abrir(material)"><app-icone nome="abrir" /></button>
+                    <button class="btn btn-fantasma btn-icone btn-perigo-ic" type="button"
+                      [attr.aria-label]="'Remover ' + material.nome" (click)="removerPdf(pasta, material)"><app-icone nome="lixo" /></button>
+                  </div>
+                </li>
+              }
+            </ul>
+          }
+          @if (erroPasta()[pasta.id]) {
+            <p class="msg-erro" role="alert">
+              <app-icone nome="erro" tamanho="p" />{{ erroPasta()[pasta.id] }}
+              @if (bateuLimite()[pasta.id]) {
+                <a routerLink="/app/planos">Ver planos</a>
+              }
+            </p>
+          }
+        </section>
+      }
+    }
+  </div>
+
+  <aside class="col-lado">
+    <form class="cartao form" aria-labelledby="t-nova-pasta" (ngSubmit)="criarPasta(f)" #f="ngForm">
+      <h2 class="cartao-titulo" id="t-nova-pasta">Nova pasta</h2>
+      <div class="campo">
+        <label for="np-nome">Nome da pasta</label>
+        <input class="entrada" id="np-nome" name="nome" [(ngModel)]="novaPasta" required maxlength="150"
+          placeholder="1º ano — Matemática — 1º bimestre" />
+        <span class="ajuda">Dica: série, disciplina e bimestre no nome ajudam a achar na hora de gerar a prova.</span>
+      </div>
+      @if (erroNovaPasta()) {
+        <p class="msg-erro" role="alert"><app-icone nome="erro" tamanho="p" />{{ erroNovaPasta() }}</p>
+      }
+      <button class="btn btn-primario btn-bloco" type="submit" [disabled]="f.invalid || criando()">
+        <app-icone nome="mais" />
+        {{ criando() ? 'Criando…' : 'Criar pasta' }}
+      </button>
+    </form>
+  </aside>
+</div>

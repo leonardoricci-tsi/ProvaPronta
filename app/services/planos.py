@@ -9,11 +9,12 @@ from sqlalchemy.orm import Session
 
 from app.auth.dependencies import NIVEL_PAPEL, UsuarioAutenticado
 from app.database import utc_now_naive
-from app.models import Prova, Turma
+from app.models import Material, Prova, Turma
 from app.services import log_client
 
 LIMITE_TURMAS_FREE = 1
 LIMITE_PROVAS_POR_MES_FREE = 2
+LIMITE_MATERIAIS_FREE = 3
 
 
 def _eh_free(usuario: UsuarioAutenticado) -> bool:
@@ -55,4 +56,21 @@ def exigir_vaga_de_prova(db: Session, request: Request, usuario: UsuarioAutentic
             usuario,
             "provas",
             "O plano Free permite 2 provas por mês. Assine o Pro para criar mais.",
+        )
+
+
+def exigir_vaga_de_materiais(
+    db: Session, request: Request, usuario: UsuarioAutenticado, novos: int
+) -> None:
+    """Biblioteca do Free: até 3 PDFs no total, contando os que estão
+    chegando agora (um envio de vários arquivos de uma vez)."""
+    if not _eh_free(usuario):
+        return
+    total = db.query(func.count(Material.id)).filter(Material.usuario_id == usuario.id).scalar()
+    if total + novos > LIMITE_MATERIAIS_FREE:
+        _negar(
+            request,
+            usuario,
+            "materiais",
+            "O plano Free permite 3 PDFs na biblioteca. Assine o Pro para guardar mais.",
         )

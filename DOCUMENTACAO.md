@@ -41,6 +41,10 @@ Um SaaS para professores do fundamental e do médio: organizar turmas e alunos, 
 
 **Coordenação** (plano Escola). Aprovar uma prova pronta (status `aprovada`) e o relatório `/app/relatorio`: totais, provas por turma e por situação e quantas questões cobrem cada assunto.
 
+**Biblioteca de materiais.** Em `/app/materiais` o professor cria pastas (ex.: "1º ano — Matemática — 1º bimestre") e envia vários PDFs de uma vez (até 10 por envio, 10 MB cada). No Free, até 3 PDFs.
+
+**Gerar questões do PDF** (Pro ou acima). No editor da prova, o professor escolhe a fonte — uma pasta inteira, um PDF, vários PDFs e/ou o PDF anexado à prova — e a IA sugere de 3 a 10 questões com gabarito e assunto, que entram na lista para revisão; só são gravadas quando o professor salva.
+
 **PDF da apostila.** Um PDF por prova (até 10 MB), guardado no object storage e aberto por link temporário.
 
 **Perfil.** Foto (JPEG, PNG ou WEBP até 2 MB), bio de até 280 caracteres e selo do plano.
@@ -58,6 +62,7 @@ Um SaaS para professores do fundamental e do médio: organizar turmas e alunos, 
 | `/redefinir-senha` | todos | Senha nova a partir do link do e-mail |
 | `/app/provas`, `/app/provas/nova`, `/app/provas/:id`, `/app/provas/:id/editar` | logado | Lista, criação, detalhe e edição de provas |
 | `/app/turmas`, `/app/turmas/:id` | logado | Lista e detalhe de turmas (com alunos) |
+| `/app/materiais` | logado | Biblioteca de PDFs em pastas |
 | `/app/relatorio` | coordenador ou acima | Relatório da coordenação |
 | `/app/planos` | logado | Planos e volta do checkout |
 | `/app/perfil`, `/app/perfil/:id` | logado | Próprio perfil / perfil de outro |
@@ -78,6 +83,7 @@ flowchart LR
     subgraph SaaS["SaaS: produtos de terceiros"]
         STRIPE["Stripe<br/>checkout + webhook"]
         SMTP["Mailtrap (dev)<br/>Resend (prod)"]
+        LLM["IA (API formato OpenAI)<br/>Groq hoje"]
     end
 
     subgraph VM["VM do servidor da disciplina · Docker · stack no Portainer"]
@@ -103,6 +109,7 @@ flowchart LR
     LOG -- "XADD / XREVRANGE" --> REDIS
     API -- "PUT/DELETE objeto,<br/>repasse da URL pré-assinada" --> GARAGE
     AUTH -- "SMTP + STARTTLS<br/>link de redefinição" --> SMTP
+    API -- "texto do PDF →<br/>questões sugeridas" --> LLM
 
     API -- "turmas, alunos, provas, questoes,<br/>perfis, assinaturas" --> MYSQL
     AUTH -- "usuarios, reset_tokens" --> MYSQL
@@ -205,6 +212,12 @@ Escada de papéis — cada um inclui os anteriores: `professor` (1) < `professor
 | M2 | A chave é gerada pelo servidor (`materiais/{usuario_id}/{prova_id}/{uuid}.pdf`); o nome original só serve para exibir. | `app/routers/provas.py` |
 | M3 | Se o Garage está fora, o envio devolve `502` e nada vai para o banco; se o banco falha depois do envio, o objeto novo é apagado; o PDF antigo só é apagado depois do commit. | `app/routers/provas.py` |
 | M4 | `GET /provas/{id}/material` devolve uma URL pré-assinada que expira; prova sem PDF dá `404`. | `app/routers/provas.py`, `app/services/storage.py` |
+| G1 | `POST /provas/{id}/gerar-questoes` exige `professor_pro` ou acima (`403` no Free) e prova do próprio usuário (`404`). As fontes são `pasta_ids`, `material_ids` e `usar_pdf_da_prova`; sem nenhuma, usa o PDF da prova (`409` se não houver). Pasta ou PDF de outra pessoa dá `404`; pasta vazia, `409`; mais de 10 PDFs, `422`. | `app/routers/provas.py` |
+| G1b | Com vários PDFs, o teto de texto é repartido entre eles (o que um PDF curto não usa vai para os outros), cada um com o nome no cabeçalho. | `app/services/gerador_questoes.py` |
+| B1 | Pastas e PDFs da biblioteca são filtrados pelo dono na query (`404` para os de outra pessoa). Envio de vários PDFs é tudo ou nada: um arquivo inválido cancela o envio. Free guarda até 3 PDFs (`403`, `acesso_negado:limite_free:materiais`). Apagar a pasta apaga os PDFs no Garage. | `app/routers/biblioteca.py`, `app/services/planos.py` |
+| G2 | O texto é extraído do PDF no servidor (até 15 mil caracteres); PDF sem texto (escaneado) dá `422` sem chamar a IA. | `app/services/gerador_questoes.py` |
+| G3 | Sem `LLM_API_KEY` o recurso responde `503`; falha, limite de uso ou resposta inaproveitável do provedor dá `502`. | `app/services/gerador_questoes.py` |
+| G4 | Cada questão devolvida pela IA passa pelas mesmas regras do editor (`QuestaoIn`); as inválidas são descartadas. Nada é gravado: o professor revisa e salva. Registra `questoes_geradas:prova:{id}:{n}`. | `app/services/gerador_questoes.py`, `app/routers/provas.py` |
 | M5 | Apagar a prova apaga o PDF no Garage. Enviar e remover registram `material_enviado` / `material_removido`. | `app/routers/provas.py` |
 | PF1 | Qualquer usuário logado vê o perfil de outro; editar bio ou foto de outra pessoa dá `403` (nem admin passa) e registra `acesso_negado:perfil:{id}`. | `app/routers/profiles.py` |
 | PF2 | A foto tem até 2 MB e precisa ser JPEG, PNG ou WEBP de verdade; é reduzida para 1024 px e regravada sem EXIF. | `app/services/imagem.py` |
@@ -260,6 +273,9 @@ erDiagram
     TURMAS ||--o{ PROVAS : "FK (RESTRICT)"
     PROVAS ||--o{ QUESTOES : "FK (CASCADE)"
     PROVAS ||--o| PDF_GARAGE : "material_key"
+    USUARIOS ||--o{ PASTAS : "usuario_id (lógica)"
+    PASTAS ||--o{ MATERIAIS : "FK (CASCADE)"
+    MATERIAIS ||--|| PDF_GARAGE : "chave"
     PERFIS ||--o| FOTO_GARAGE : "foto_key"
 
     USUARIOS {
@@ -309,6 +325,19 @@ erDiagram
         int resposta_correta
         varchar assunto
     }
+    PASTAS {
+        int id PK
+        int usuario_id
+        varchar nome
+    }
+    MATERIAIS {
+        int id PK
+        int usuario_id
+        int pasta_id FK
+        varchar nome
+        varchar chave UK "biblioteca/{usuario}/{pasta}/{uuid}.pdf"
+        int tamanho_bytes
+    }
     PERFIS {
         int usuario_id PK
         varchar bio "280"
@@ -334,7 +363,7 @@ erDiagram
 | Entidade | Armazenamento | Dono |
 |---|---|---|
 | `usuarios`, `reset_tokens` | MySQL | auth-service |
-| `turmas`, `alunos`, `provas`, `questoes` | MySQL | api |
+| `turmas`, `alunos`, `provas`, `questoes`, `pastas`, `materiais` | MySQL | api |
 | `perfis`, `assinaturas` | MySQL | api |
 | PDF da apostila, foto de perfil | Garage, bucket `provapronta-arquivos` (o MySQL guarda só a chave) | api |
 | Log de auditoria | Redis, Stream `audit_log` | log-service |
@@ -347,6 +376,8 @@ Dois históricos do Alembic no mesmo banco:
 - **auth-service:** `auth-service/alembic/versions/` (controle em `alembic_version_auth`), com `role`, `reset_tokens` e a escada de papéis.
 
 As migrations mais antigas são o histórico das atividades 1 a 9; os identificadores do domínio anterior nelas foram trocados por nomes neutros (cada arquivo explica por que isso não muda nenhum banco).
+
+A biblioteca vem da [`c3e5a7b9d1f2`](alembic/versions/c3e5a7b9d1f2_biblioteca_de_materiais.py), que executa [`db/003_biblioteca.sql`](db/003_biblioteca.sql).
 
 Seed de demonstração: [`db/002_seed_dominio.sql`](db/002_seed_dominio.sql) — roda uma vez, depois das migrations, e pode rodar de novo.
 

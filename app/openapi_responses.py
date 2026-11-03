@@ -122,6 +122,16 @@ RESP_409_APROVACAO = {
     )
 }
 
+RESP_ERROS_GERACAO = {
+    409: _erro("A prova ainda não tem PDF anexado", "Anexe o PDF da apostila antes de gerar questões"),
+    422: _erro(
+        "PDF sem texto extraível (ex.: escaneado)",
+        "O PDF não tem texto suficiente para gerar questões",
+    ),
+    502: _erro("O provedor de IA falhou ou devolveu algo inaproveitável", "A IA não devolveu questões válidas. Tente de novo."),
+    503: _erro("Chave da IA não configurada neste ambiente", "Geração de questões com IA não configurada neste ambiente"),
+}
+
 RESP_ERROS_MATERIAL = {
     413: _erro("Arquivo acima do tamanho máximo (10 MB)", "PDF acima de 10 MB"),
     415: _erro("Arquivo não é um PDF (conferido pelo conteúdo, não pela extensão)", "Envie um arquivo PDF"),

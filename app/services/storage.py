@@ -64,6 +64,16 @@ def enviar_objeto(chave: str, conteudo: bytes, content_type: str) -> None:
         raise StorageUnavailable("Armazenamento de arquivos indisponível no momento") from erro
 
 
+def baixar_objeto(chave: str) -> bytes:
+    """Lê o objeto inteiro pela rede interna (ex.: o PDF da apostila, pra
+    extrair o texto e gerar questões)."""
+    try:
+        resposta = _get_client_interno().get_object(Bucket=get_settings().s3_bucket, Key=chave)
+        return resposta["Body"].read()
+    except (BotoCoreError, ClientError) as erro:
+        raise StorageUnavailable("Armazenamento de arquivos indisponível no momento") from erro
+
+
 def apagar_objeto(chave: str) -> None:
     """Best-effort: usado pra limpar a foto antiga depois de uma troca, ou a
     recém-enviada quando o commit no banco falha. Um objeto órfão no bucket

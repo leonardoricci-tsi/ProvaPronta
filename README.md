@@ -42,8 +42,9 @@ Criadas pela seed [`db/002_seed_dominio.sql`](db/002_seed_dominio.sql) (a Marta 
 | Landing pública | `/` | Proposta de valor, como funciona, recursos, planos, FAQ e o botão **Criar conta grátis** |
 | Entrar · Criar conta · Esqueci a senha | `/login`, `/registro`, `/esqueci-senha` | Conta própria (JWT); o "esqueci a senha" manda um e-mail com a marca, de `no-reply@provapronta.online` |
 | Minhas provas | `/app/provas` | Lista com filtro por turma, selo rascunho/pronta e marca de PDF anexado |
-| Nova / editar prova | `/app/provas/nova`, `/app/provas/:id/editar` | Editor de questões: enunciado, 2 a 5 alternativas, a correta marcada, assunto, reordenar |
+| Nova / editar prova | `/app/provas/nova`, `/app/provas/:id/editar` | Editor de questões: enunciado, 2 a 5 alternativas, a correta marcada, assunto, reordenar; **gerar questões a partir do PDF com IA** (Pro) |
 | Detalhe da prova | `/app/provas/:id` | Gabarito destacado, **PDF da apostila** (enviar, abrir, trocar, remover), **gerar versão B** (Pro), **aprovar** (Escola), apagar |
+| Materiais | `/app/materiais` | Biblioteca de PDFs em **pastas** (ex.: "1º ano — Matemática — 1º bimestre"): enviar vários de uma vez, abrir, remover, renomear e apagar a pasta |
 | Minhas turmas · Detalhe da turma | `/app/turmas`, `/app/turmas/:id` | Turmas, alunos com nº de chamada, provas da turma |
 | Relatório da coordenação | `/app/relatorio` | Totais, provas por turma e por situação, questões por assunto (Escola) |
 | Planos | `/app/planos` | Free, Professor Pro e Escola, com checkout do Stripe (modo de teste) |
@@ -52,7 +53,9 @@ Criadas pela seed [`db/002_seed_dominio.sql`](db/002_seed_dominio.sql) (a Marta 
 
 Tema claro e escuro (segue o sistema; troca no menu do avatar) e layout que funciona no celular.
 
-**Roadmap** (no plano de negócio, ainda não construído): correção por foto do gabarito, geração de questões a partir do PDF e banco de questões.
+**Gerar questões do PDF (Pro):** o professor escolhe a fonte — **uma pasta inteira** da biblioteca, **um PDF**, **vários PDFs** (de pastas diferentes) e/ou o PDF anexado à prova. A API extrai o texto (`pypdf`), reparte o espaço entre os arquivos para todos entrarem, e pede a um modelo de linguagem questões de múltipla escolha com gabarito e assunto. Elas voltam como **sugestão** para o editor — nada é gravado até o professor revisar e salvar. O provedor é configurável por variável de ambiente (`LLM_API_KEY`, `LLM_BASE_URL`, `LLM_MODEL`, API no formato da OpenAI): hoje o Groq; trocar pelo Claude é só configuração.
+
+**Roadmap** (no plano de negócio, ainda não construído): correção por foto do gabarito e banco de questões.
 
 ## 2. Requisitos da atividade 10
 
@@ -80,6 +83,7 @@ flowchart LR
     subgraph SaaS["SaaS: produtos de terceiros"]
         STRIPE["Stripe<br/>checkout + webhook"]
         RESEND["Resend (SMTP)<br/>provapronta.online"]
+        LLM["IA · API formato OpenAI<br/>Groq (troca pelo Claude)"]
     end
 
     subgraph VM["VM da disciplina · Docker · stack no Portainer (GitOps)"]
@@ -104,6 +108,7 @@ flowchart LR
     LOG --> REDIS
     API -- "PDF da apostila, foto de perfil<br/>(URL pré-assinada)" --> GARAGE
     AUTH -- "SMTP 587 + STARTTLS" --> RESEND
+    API -- "texto do PDF → questões sugeridas" --> LLM
     API -- "turmas, alunos, provas, questoes,<br/>perfis, assinaturas" --> MYSQL
     AUTH -- "usuarios, reset_tokens" --> MYSQL
 ```
@@ -179,8 +184,9 @@ Os papéis formam uma escada, cada um inclui os anteriores: `professor` (Free) <
 | Ação | Free (`professor`) | `professor_pro` | `coordenador` | `admin` |
 |---|---|---|---|---|
 | Turmas, alunos, provas, PDF (CRUD dos próprios) | ✅ até 1 turma e 2 provas/mês | ✅ ilimitado | ✅ ilimitado | ✅ |
-| Criar a 2ª turma / a 3ª prova do mês | **403** `acesso_negado:limite_free:*` | ✅ | ✅ | ✅ |
+| Criar a 2ª turma / a 3ª prova do mês / o 4º PDF da biblioteca | **403** `acesso_negado:limite_free:*` | ✅ | ✅ | ✅ |
 | `POST /provas/{id}/versao-b` | **403** `Ação exige papel 'professor_pro' ou superior` | ✅ | ✅ | ✅ |
+| `POST /provas/{id}/gerar-questoes` (IA) | **403** | ✅ | ✅ | ✅ |
 | `POST /provas/{id}/aprovar` | **403** | **403** `Ação exige papel 'coordenador' ou superior` | ✅ | ✅ |
 | `GET /coordenacao/relatorio` | **403** | **403** | ✅ | ✅ |
 | `GET /admin/logs`, `/auth/admin/users` | **403** | **403** | **403** | ✅ |
@@ -196,6 +202,7 @@ Toda consulta do domínio filtra pelo dono **na query** (`usuario_id` do JWT), n
 - `GET/PATCH/DELETE /provas/{id}`, `/provas/{id}/material`, `/provas/{id}/versao-b`, `/provas/{id}/aprovar` e `/turmas/{id}` de outra pessoa → `404` (nem o coordenador aprova prova de outra pessoa);
 - criar prova numa turma de outra pessoa → `404`;
 - `GET /provas?turma_id=<de outra pessoa>` → lista vazia;
+- pasta ou PDF da biblioteca de outra pessoa (ver, enviar, abrir, apagar, ou usar para gerar questões) → `404`;
 - aluno não tem dono próprio: é da turma, e a turma é conferida pelo dono antes de adicionar ou remover.
 
 O PDF tem a mesma regra: o link pré-assinado só é gerado para o dono da prova. Testes: `test_*_de_outro_*` em `tests/test_turmas.py`, `tests/test_provas.py` e `tests/test_material.py`.
@@ -210,6 +217,8 @@ A api e o auth-service mandam `POST /logs` para o log-service (fire-and-forget: 
 | `aluno_adicionado:turma:{t}:aluno:{a}`, `aluno_removido:turma:{t}:aluno:{a}` | Alunos da turma |
 | `prova_criada:{id}`, `prova_editada:{id}`, `prova_removida:{id}` | CRUD de prova |
 | `prova_versao_b:{original}:nova:{nova}` | Versão B gerada (Pro) |
+| `questoes_geradas:prova:{id}:{n}:pdfs:{k}` | Questões sugeridas pela IA a partir de k PDFs (Pro) |
+| `pasta_criada:{id}`, `pasta_renomeada:{id}`, `pasta_removida:{id}`, `materiais_enviados:pasta:{id}:{n}`, `material_removido:{id}` | Biblioteca de materiais |
 | `prova_aprovada:{id}`, `relatorio_coordenacao_consultado` | Ações da coordenação (Escola) |
 | `material_enviado:prova:{id}`, `material_removido:prova:{id}` | PDF da apostila |
 | `acesso_negado:{papel}`, `acesso_negado:limite_free:{turmas\|provas}`, `acesso_negado:admin`, `acesso_negado:perfil:{id}` | Toda ação barrada com 403 |

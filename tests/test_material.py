@@ -62,9 +62,9 @@ def test_arquivo_que_nao_e_pdf_e_recusado_mesmo_com_extensao_pdf(client, auth_se
 
 
 def test_pdf_acima_de_10_mb_e_recusado(client, auth_service, garage_falso, monkeypatch):
-    from app.routers import provas
+    from app.services import pdf
 
-    monkeypatch.setattr(provas, "TAMANHO_MAXIMO_MATERIAL", 10)
+    monkeypatch.setattr(pdf, "TAMANHO_MAXIMO", 10)
     token = criar_token()
     prova = criar_prova(client, token)
 

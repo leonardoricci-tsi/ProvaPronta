@@ -7,18 +7,21 @@ from sqlalchemy.orm import Session, selectinload
 
 from app.auth.dependencies import UsuarioAutenticado, get_current_user, require_papel_minimo
 from app.database import get_db
-from app.models import Prova, Questao, Turma
+from app.models import Material, Pasta, Prova, Questao, Turma
 from app.openapi_responses import (
     RESP_401,
     RESP_403_LIMITE_FREE,
     RESP_404,
     RESP_409_APROVACAO,
     RESP_502_STORAGE,
+    RESP_ERROS_GERACAO,
     RESP_ERROS_MATERIAL,
     resp_403_papel,
 )
 from app.routers._ownership import get_owned_or_404
 from app.schemas.prova import (
+    GerarQuestoesIn,
+    GerarQuestoesOut,
     MaterialOut,
     ProvaDetalheOut,
     ProvaIn,
@@ -26,10 +29,7 @@ from app.schemas.prova import (
     ProvaUpdateIn,
     QuestaoIn,
 )
-from app.services import log_client, planos, storage
-
-# PDF do material (livro, apostila): até 10 MB, conferido pelos bytes.
-TAMANHO_MAXIMO_MATERIAL = 10 * 1024 * 1024
+from app.services import gerador_questoes, log_client, pdf, planos, storage
 
 router = APIRouter(prefix="/provas", tags=["provas"])
 
@@ -189,6 +189,110 @@ def gerar_versao_b(
     return versao_b
 
 
+# Teto de PDFs numa geração: cada um é baixado do Garage e lido em memória.
+MAX_PDFS_POR_GERACAO = 10
+
+
+def _fontes_da_geracao(
+    db: Session, prova: Prova, dados: GerarQuestoesIn, usuario_id: int
+) -> list[tuple[str, str]]:
+    """(nome, chave no Garage) dos PDFs escolhidos, sem repetir. Tudo
+    filtrado pelo dono na query: id de pasta ou PDF de outra pessoa conta
+    como inexistente (404)."""
+    escolheu_biblioteca = bool(dados.pasta_ids or dados.material_ids)
+    fontes: dict[str, str] = {}
+    if dados.usar_pdf_da_prova or not escolheu_biblioteca:
+        if prova.material_key:
+            fontes[prova.material_key] = prova.material_nome or "material.pdf"
+        elif not escolheu_biblioteca:
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail="Anexe o PDF da apostila ou escolha PDFs da biblioteca antes de gerar questões",
+            )
+
+    if dados.pasta_ids:
+        pastas = (
+            db.query(Pasta)
+            .options(selectinload(Pasta.materiais))
+            .filter(Pasta.id.in_(dados.pasta_ids), Pasta.usuario_id == usuario_id)
+            .all()
+        )
+        if len(pastas) != len(set(dados.pasta_ids)):
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Pasta não encontrada")
+        for pasta in pastas:
+            for material in pasta.materiais:
+                fontes.setdefault(material.chave, material.nome)
+    if dados.material_ids:
+        materiais = (
+            db.query(Material)
+            .filter(Material.id.in_(dados.material_ids), Material.usuario_id == usuario_id)
+            .order_by(Material.nome)
+            .all()
+        )
+        if len(materiais) != len(set(dados.material_ids)):
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="PDF não encontrado")
+        for material in materiais:
+            fontes.setdefault(material.chave, material.nome)
+
+    if not fontes:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT, detail="As pastas escolhidas não têm nenhum PDF"
+        )
+    if len(fontes) > MAX_PDFS_POR_GERACAO:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            detail=f"Escolha no máximo {MAX_PDFS_POR_GERACAO} PDFs por geração",
+        )
+    return [(nome, chave) for chave, nome in fontes.items()]
+
+
+@router.post(
+    "/{prova_id}/gerar-questoes",
+    response_model=GerarQuestoesOut,
+    responses=RESP_401 | resp_403_papel("professor_pro") | RESP_404 | RESP_ERROS_GERACAO,
+)
+def gerar_questoes_do_pdf(
+    prova_id: int,
+    request: Request,
+    dados: GerarQuestoesIn | None = None,
+    usuario_atual: UsuarioAutenticado = Depends(require_papel_minimo("professor_pro")),
+    db: Session = Depends(get_db),
+) -> GerarQuestoesOut:
+    """Plano Pro: lê os PDFs escolhidos — pastas inteiras e/ou PDFs da
+    biblioteca, e/ou o PDF anexado à prova — e pede à IA questões de
+    múltipla escolha com gabarito. Devolve **sugestões**: nada é gravado; o
+    professor revisa no editor e salva. Free recebe 403. Pasta ou PDF de
+    outra pessoa dá 404, como se não existisse."""
+    dados = dados or GerarQuestoesIn()
+    prova = get_owned_or_404(db, Prova, prova_id, usuario_atual.id)
+    fontes = _fontes_da_geracao(db, prova, dados, usuario_atual.id)
+    try:
+        arquivos = [(nome, storage.baixar_objeto(chave)) for nome, chave in fontes]
+    except storage.StorageUnavailable as erro:
+        raise HTTPException(status_code=status.HTTP_502_BAD_GATEWAY, detail=str(erro)) from erro
+    try:
+        texto = gerador_questoes.extrair_texto_de_varios(arquivos)
+        questoes = gerador_questoes.gerar_questoes(texto, dados.quantidade, prova.turma.disciplina)
+    except gerador_questoes.PdfSemTexto as erro:
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(erro)) from erro
+    except gerador_questoes.GeracaoIndisponivel as erro:
+        raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail=str(erro)) from erro
+    except gerador_questoes.FalhaNaGeracao as erro:
+        raise HTTPException(status_code=status.HTTP_502_BAD_GATEWAY, detail=str(erro)) from erro
+
+    log_client.registrar_evento(
+        usuario_atual.id,
+        f"questoes_geradas:prova:{prova.id}:{len(questoes)}:pdfs:{len(fontes)}",
+        ip=_ip(request),
+    )
+    nomes = [nome for nome, _ in fontes]
+    return GerarQuestoesOut(
+        questoes=questoes,
+        fonte=nomes[0] if len(nomes) == 1 else f"{len(nomes)} PDFs",
+        fontes=nomes,
+    )
+
+
 @router.post(
     "/{prova_id}/aprovar",
     response_model=ProvaDetalheOut,
@@ -232,18 +336,7 @@ def enviar_material(
     """Mesmo caminho da foto de perfil: o arquivo vai pro Garage (bucket
     privado), só a chave do objeto vai pro MySQL, ligada à prova."""
     prova = get_owned_or_404(db, Prova, prova_id, usuario_atual.id)
-    # Lê no máximo 1 byte além do limite: o bastante pra saber que passou.
-    conteudo = arquivo.file.read(TAMANHO_MAXIMO_MATERIAL + 1)
-    if len(conteudo) > TAMANHO_MAXIMO_MATERIAL:
-        raise HTTPException(
-            status_code=status.HTTP_413_REQUEST_ENTITY_TOO_LARGE, detail="PDF acima de 10 MB"
-        )
-    # Tipo conferido pela assinatura do arquivo, não pela extensão nem pelo
-    # Content-Type que o navegador manda (os dois o cliente escolhe).
-    if not conteudo.startswith(b"%PDF-"):
-        raise HTTPException(
-            status_code=status.HTTP_415_UNSUPPORTED_MEDIA_TYPE, detail="Envie um arquivo PDF"
-        )
+    conteudo = pdf.ler_pdf_enviado(arquivo)
 
     # Chave gerada pelo servidor; o nome original só serve pra exibir.
     chave_nova = f"materiais/{usuario_atual.id}/{prova.id}/{uuid4().hex}.pdf"

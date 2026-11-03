@@ -13,6 +13,8 @@ python-dotenv==1.0.1
 pillow==11.1.0
 python-multipart==0.0.32
 boto3==1.43.103
+# Texto do PDF da apostila, pra gerar questões com IA
+pypdf==5.1.0
 # Plano premium (atividade 7): checkout e webhook do Stripe
 stripe==16.0.0
 
