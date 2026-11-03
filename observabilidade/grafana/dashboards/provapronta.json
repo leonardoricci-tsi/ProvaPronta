@@ -1,8 +1,8 @@
 {
-  "uid": "api-filmes-observabilidade",
-  "title": "API Filmes — saúde e métricas",
+  "uid": "provapronta-observabilidade",
+  "title": "ProvaPronta — saúde e métricas",
   "tags": [
-    "api-filmes",
+    "provapronta",
     "observabilidade"
   ],
   "timezone": "browser",
@@ -247,8 +247,8 @@
     {
       "id": 5,
       "type": "timeseries",
-      "title": "Latência p95 por rota — catálogo",
-      "description": "Mesmo p95, quebrado por rota (template) do catálogo.",
+      "title": "Latência p95 por rota — API",
+      "description": "Mesmo p95, quebrado por rota (template) da API do ProvaPronta.",
       "datasource": {
         "type": "prometheus",
         "uid": "prometheus"
@@ -265,7 +265,7 @@
             "type": "prometheus",
             "uid": "prometheus"
           },
-          "expr": "histogram_quantile(0.95, sum by (handler, le) (rate(http_request_duration_seconds_bucket{job=\"catalogo\"}[$__rate_interval])))",
+          "expr": "histogram_quantile(0.95, sum by (handler, le) (rate(http_request_duration_seconds_bucket{job=\"provapronta-api\"}[$__rate_interval])))",
           "legendFormat": "{{handler}}",
           "refId": "A",
           "format": "time_series"

@@ -21,7 +21,11 @@ async def lifespan(_app: FastAPI):
     yield
 
 
-app = FastAPI(title="Log Service — Auditoria", lifespan=lifespan)
+app = FastAPI(
+    title="ProvaPronta — Log Service",
+    description="Eventos de auditoria do negócio (Redis Stream `audit_log`).",
+    lifespan=lifespan,
+)
 
 app.include_router(health.router)
 app.include_router(logs.router)

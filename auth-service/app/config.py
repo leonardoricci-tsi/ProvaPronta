@@ -19,14 +19,17 @@ class Settings(BaseSettings):
     # o link de redefinição de senha aponta pra lá (não pro auth-service,
     # que não tem porta publicada).
     catalog_public_url: str = "http://localhost:8000"
-    # SMTP de dev (Mailtrap) — em produção essas mesmas variáveis apontariam
-    # pro Brevo, sem mudar nenhuma linha de código, só o .env.
+    # SMTP de dev (Mailtrap) — em produção essas mesmas variáveis apontam pro
+    # Resend com domínio próprio (smtp.resend.com:587, usuário "resend",
+    # senha = API key, remetente no domínio verificado), sem
+    # mudar nenhuma linha de código, só o .env. O mailer usa STARTTLS, então
+    # a porta tem que ser a 587 (a 465 é SSL direto e não funciona aqui).
     smtp_host: str = "sandbox.smtp.mailtrap.io"
     smtp_port: int = 587
     smtp_user: str
     smtp_password: str
-    smtp_from_email: str = "no-reply@catalogo-filmes.local"
-    smtp_from_name: str = "Catálogo de Filmes"
+    smtp_from_email: str = "no-reply@provapronta.local"
+    smtp_from_name: str = "ProvaPronta"
 
 
 @lru_cache

@@ -21,7 +21,11 @@ async def lifespan(_app: FastAPI):
     yield
 
 
-app = FastAPI(title="Auth Service — Catálogo de Filmes", lifespan=lifespan)
+app = FastAPI(
+    title="ProvaPronta — Auth Service",
+    description="Cadastro, login (JWT), papéis e redefinição de senha. Só a API do ProvaPronta fala com ele.",
+    lifespan=lifespan,
+)
 
 app.include_router(health.router)
 app.include_router(auth.router)

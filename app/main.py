@@ -32,7 +32,15 @@ async def lifespan(_app: FastAPI):
     yield
 
 
-app = FastAPI(title="ProvaPronta", lifespan=lifespan)
+app = FastAPI(
+    title="ProvaPronta",
+    description=(
+        "API do ProvaPronta: turmas, alunos, provas de múltipla escolha, PDF da "
+        "apostila e versão B embaralhada. Papéis: professor (Free) < "
+        "professor_pro < coordenador < admin."
+    ),
+    lifespan=lifespan,
+)
 
 app.include_router(health.router)
 app.include_router(auth.router)
