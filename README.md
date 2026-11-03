@@ -14,8 +14,9 @@
 | E-mail | Senha | Plano |
 |---|---|---|
 | `marta@provapronta.demo` | `ProvaPronta2026` | Professor Pro, com a turma "1º A — Biologia", 5 alunos e 2 provas |
+| `coordenacao@provapronta.demo` | `ProvaPronta2026` | Escola (coordenadora Helena), com uma prova pronta para aprovar, uma aprovada e o relatório |
 
-Criada pela seed [`db/002_seed_dominio.sql`](db/002_seed_dominio.sql) (é a persona do plano de negócio). Para ver o plano Free, crie uma conta nova pelo site: todo cadastro nasce no Free.
+Criadas pela seed [`db/002_seed_dominio.sql`](db/002_seed_dominio.sql) (a Marta é a persona do plano de negócio). Para ver o plano Free, crie uma conta nova pelo site: todo cadastro nasce no Free.
 
 ---
 
@@ -42,8 +43,9 @@ Criada pela seed [`db/002_seed_dominio.sql`](db/002_seed_dominio.sql) (é a pers
 | Entrar · Criar conta · Esqueci a senha | `/login`, `/registro`, `/esqueci-senha` | Conta própria (JWT); o "esqueci a senha" manda um e-mail com a marca, de `no-reply@provapronta.online` |
 | Minhas provas | `/app/provas` | Lista com filtro por turma, selo rascunho/pronta e marca de PDF anexado |
 | Nova / editar prova | `/app/provas/nova`, `/app/provas/:id/editar` | Editor de questões: enunciado, 2 a 5 alternativas, a correta marcada, assunto, reordenar |
-| Detalhe da prova | `/app/provas/:id` | Gabarito destacado, **PDF da apostila** (enviar, abrir, trocar, remover), **gerar versão B** (Pro), apagar |
+| Detalhe da prova | `/app/provas/:id` | Gabarito destacado, **PDF da apostila** (enviar, abrir, trocar, remover), **gerar versão B** (Pro), **aprovar** (Escola), apagar |
 | Minhas turmas · Detalhe da turma | `/app/turmas`, `/app/turmas/:id` | Turmas, alunos com nº de chamada, provas da turma |
+| Relatório da coordenação | `/app/relatorio` | Totais, provas por turma e por situação, questões por assunto (Escola) |
 | Planos | `/app/planos` | Free, Professor Pro e Escola, com checkout do Stripe (modo de teste) |
 | Perfil | `/app/perfil` | Foto, bio e selo do plano |
 | Admin | `/app/admin` | Usuários e papéis, e os eventos de auditoria do log-service |
@@ -60,14 +62,14 @@ Tema claro e escuro (segue o sistema; troca no menu do avatar) e layout que func
 | R2 | ≥ 3 tabelas de domínio com FK, por migration + seed versionados | `turmas`, `alunos`, `provas`, `questoes` em [`db/001_dominio.sql`](db/001_dominio.sql), aplicado pela migration [`a7c9e1f3b5d7`](alembic/versions/a7c9e1f3b5d7_dominio_provapronta.py); seed em [`db/002_seed_dominio.sql`](db/002_seed_dominio.sql) |
 | R3 | CRUD do recurso principal | `/provas` e `/turmas` (listar, criar, detalhar, editar, apagar) — [`app/routers/provas.py`](app/routers/provas.py), [`app/routers/turmas.py`](app/routers/turmas.py) |
 | R4 | Telas de listar, criar, detalhe e editar | Provas e turmas no Angular — [`frontend/src/app/features/provas`](frontend/src/app/features/provas), [`features/turmas`](frontend/src/app/features/turmas) |
-| R5 | ≥ 3 papéis, ação proibida dá 403 mesmo pela API | [Seção 5](#5-papéis-e-permissões-403) — `require_papel_minimo` em [`app/auth/dependencies.py`](app/auth/dependencies.py) e limites do Free em [`app/services/planos.py`](app/services/planos.py) |
+| R5 | ≥ 3 papéis, ação proibida dá 403 mesmo pela API | 3 papéis de negócio com ações próprias — Free, Pro (versão B, sem limites) e Escola (aprovar prova, relatório) — mais o admin. [Seção 5](#5-papéis-e-permissões-403); `require_papel_minimo` em [`app/auth/dependencies.py`](app/auth/dependencies.py) |
 | R6 | Isolamento por usuário: recurso de outro dá 403/404 | [Seção 6](#6-isolamento-por-usuário-404) — `get_owned_or_404` em [`app/routers/_ownership.py`](app/routers/_ownership.py) |
 | R7 | Eventos de negócio no log-service | [Seção 7](#7-eventos-de-auditoria) |
 | R8 | Upload no MinIO/Garage ligado a um registro | PDF da apostila ligado à prova — [Seção 8](#8-upload-no-object-storage) |
 | R9 | Landing pública com proposta de valor e cadastro | [`/`](https://leonardo-oliveira-isw055.lapps.studio) — [`features/landing`](frontend/src/app/features/landing) |
 | R10 | Nada do domínio anterior no código ou nas telas; variável da API externa removida da stack | Telas, serviços, rotas, modelos e testes do domínio anterior removidos; a variável da API externa saiu do compose e do Portainer; bucket, banco do CI e painel do Grafana renomeados |
 
-Os testes automatizados cobrem R3, R5, R6, R7 e R8 (`tests/test_turmas.py`, `tests/test_provas.py`, `tests/test_material.py`), e o smoke test do CI sobe a stack inteira e repete o fluxo de verdade: cria turma, cria prova, envia o PDF, abre pelo link pré-assinado, outro usuário leva 404 e o Free leva 403 na versão B ([`scripts/smoke-test.sh`](scripts/smoke-test.sh)).
+Os testes automatizados cobrem R3, R5, R6, R7 e R8 (`tests/test_turmas.py`, `tests/test_provas.py`, `tests/test_material.py`, `tests/test_coordenacao.py`), e o smoke test do CI sobe a stack inteira e repete o fluxo de verdade: cria turma, cria prova, envia o PDF, abre pelo link pré-assinado, outro usuário leva 404 e o Free leva 403 na versão B ([`scripts/smoke-test.sh`](scripts/smoke-test.sh)).
 
 ## 3. Arquitetura
 
@@ -82,7 +84,7 @@ flowchart LR
 
     subgraph VM["VM da disciplina · Docker · stack no Portainer (GitOps)"]
         subgraph NET["rede interna catalog-net"]
-            API["<b>api</b> :8000<br/>FastAPI + Angular estático<br/>turmas, provas, perfis, planos<br/>ÚNICA porta publicada"]
+            API["<b>api</b> :8000<br/>FastAPI + Angular estático<br/>turmas, provas, coordenação,<br/>perfis, planos<br/>ÚNICA porta publicada"]
             AUTH["<b>auth-service</b> :8001<br/>usuários, login, JWT,<br/>papéis, reset de senha"]
             LOG["<b>log-service</b> :8002<br/>auditoria"]
             REDIS[("Redis<br/>Stream audit_log")]
@@ -148,7 +150,7 @@ erDiagram
         int turma_id FK
         varchar titulo
         date data_aplicacao
-        varchar status "rascunho | pronta"
+        varchar status "rascunho | pronta | aprovada"
         varchar material_key "chave no Garage"
         varchar material_nome
     }
@@ -179,15 +181,19 @@ Os papéis formam uma escada, cada um inclui os anteriores: `professor` (Free) <
 | Turmas, alunos, provas, PDF (CRUD dos próprios) | ✅ até 1 turma e 2 provas/mês | ✅ ilimitado | ✅ ilimitado | ✅ |
 | Criar a 2ª turma / a 3ª prova do mês | **403** `acesso_negado:limite_free:*` | ✅ | ✅ | ✅ |
 | `POST /provas/{id}/versao-b` | **403** `Ação exige papel 'professor_pro' ou superior` | ✅ | ✅ | ✅ |
+| `POST /provas/{id}/aprovar` | **403** | **403** `Ação exige papel 'coordenador' ou superior` | ✅ | ✅ |
+| `GET /coordenacao/relatorio` | **403** | **403** | ✅ | ✅ |
 | `GET /admin/logs`, `/auth/admin/users` | **403** | **403** | **403** | ✅ |
 
-Os planos pagos são vendidos pelo Stripe: o webhook assinado troca o papel no auth-service (`professor` → `professor_pro` ou `coordenador`). Testes: `tests/test_provas.py` (versão B e limite de provas), `tests/test_turmas.py` (limite de turmas) e `tests/test_premium_*.py`.
+**Aprovar prova:** só prova `pronta` pode ser aprovada (`409` para rascunho ou já aprovada). O status `aprovada` não pode ser enviado no corpo de `POST`/`PATCH /provas` (`422`), então ninguém se autoaprova pela API; e editar uma prova aprovada a devolve para `pronta`.
+
+Os planos pagos são vendidos pelo Stripe: o webhook assinado troca o papel no auth-service (`professor` → `professor_pro` ou `coordenador`). Testes: `tests/test_provas.py` (versão B e limite de provas), `tests/test_turmas.py` (limite de turmas), `tests/test_coordenacao.py` (aprovar e relatório) e `tests/test_premium_*.py`.
 
 ## 6. Isolamento por usuário (404)
 
 Toda consulta do domínio filtra pelo dono **na query** (`usuario_id` do JWT), nunca pela tela. Turma ou prova de outro professor responde **`404`**, como se não existisse (`403` revelaria que o ID existe):
 
-- `GET/PATCH/DELETE /provas/{id}`, `/provas/{id}/material`, `/provas/{id}/versao-b` e `/turmas/{id}` de outra pessoa → `404`;
+- `GET/PATCH/DELETE /provas/{id}`, `/provas/{id}/material`, `/provas/{id}/versao-b`, `/provas/{id}/aprovar` e `/turmas/{id}` de outra pessoa → `404` (nem o coordenador aprova prova de outra pessoa);
 - criar prova numa turma de outra pessoa → `404`;
 - `GET /provas?turma_id=<de outra pessoa>` → lista vazia;
 - aluno não tem dono próprio: é da turma, e a turma é conferida pelo dono antes de adicionar ou remover.
@@ -204,6 +210,7 @@ A api e o auth-service mandam `POST /logs` para o log-service (fire-and-forget: 
 | `aluno_adicionado:turma:{t}:aluno:{a}`, `aluno_removido:turma:{t}:aluno:{a}` | Alunos da turma |
 | `prova_criada:{id}`, `prova_editada:{id}`, `prova_removida:{id}` | CRUD de prova |
 | `prova_versao_b:{original}:nova:{nova}` | Versão B gerada (Pro) |
+| `prova_aprovada:{id}`, `relatorio_coordenacao_consultado` | Ações da coordenação (Escola) |
 | `material_enviado:prova:{id}`, `material_removido:prova:{id}` | PDF da apostila |
 | `acesso_negado:{papel}`, `acesso_negado:limite_free:{turmas\|provas}`, `acesso_negado:admin`, `acesso_negado:perfil:{id}` | Toda ação barrada com 403 |
 | `abrir_checkout:{plano}`, `plano_ativado:{plano}`, `plano_cancelado:{plano}` | Assinatura (Stripe) |

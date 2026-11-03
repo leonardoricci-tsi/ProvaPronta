@@ -175,9 +175,7 @@
                     <span>{{ prova.total_questoes }} {{ prova.total_questoes === 1 ? 'questão' : 'questões' }}</span>
                   </div>
                 </div>
-                <span class="selo" [class.selo-pronta]="prova.status === 'pronta'" [class.selo-rascunho]="prova.status === 'rascunho'">
-                  {{ prova.status === 'pronta' ? 'Pronta' : 'Rascunho' }}
-                </span>
+                <span [class]="seloStatus[prova.status].classe">{{ seloStatus[prova.status].texto }}</span>
               </li>
             }
           </ul>

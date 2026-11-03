@@ -10,7 +10,11 @@
 --   e-mail: marta@provapronta.demo
 --   senha:  ProvaPronta2026   (conta de demonstração: troque ou apague
 --                              num ambiente de verdade)
--- Pode rodar de novo: apaga e recria só os dados da Marta.
+--
+-- E a coordenadora do plano Escola, pra demonstrar aprovar prova e o
+-- relatório da coordenação (mesma senha):
+--   e-mail: coordenacao@provapronta.demo
+-- Pode rodar de novo: apaga e recria só os dados dessas duas contas.
 
 -- Sem isso o cliente mysql pode mandar o texto em latin1 e os acentos
 -- chegam corrompidos no banco.
@@ -56,3 +60,48 @@ INSERT INTO questoes (prova_id, ordem, enunciado, alternativas, resposta_correta
 
 INSERT INTO provas (usuario_id, turma_id, titulo, status)
 VALUES (@marta, @turma, 'Recuperação — Citologia', 'rascunho');
+
+-- ---------------------------------------------------------------------
+-- Coordenadora (plano Escola): uma prova pronta esperando aprovação e
+-- uma já aprovada, com assuntos variados pro relatório.
+SET @email_coord := 'coordenacao@provapronta.demo';
+
+INSERT INTO usuarios (nome, email, senha_hash, role)
+SELECT 'Helena Duarte', @email_coord, '$2b$12$MqHRt.YyKSqnUwjPgR5zcut4Ns/Jkd70aGlOIXdEE.vsIegao0scy', 'coordenador'
+WHERE NOT EXISTS (SELECT 1 FROM usuarios WHERE email = @email_coord);
+
+SET @helena := (SELECT id FROM usuarios WHERE email = @email_coord);
+
+DELETE FROM provas WHERE usuario_id = @helena;
+DELETE FROM turmas WHERE usuario_id = @helena;
+
+INSERT INTO turmas (usuario_id, nome, disciplina, escola, ano_letivo)
+VALUES (@helena, '2º B', 'Química', 'E.E. Prof. João Cruz', 2026);
+SET @turma_h := LAST_INSERT_ID();
+
+INSERT INTO alunos (turma_id, nome, numero_chamada) VALUES
+    (@turma_h, 'Felipe Rocha', 1),
+    (@turma_h, 'Gabriela Nunes', 2),
+    (@turma_h, 'Heitor Campos', 3);
+
+INSERT INTO provas (usuario_id, turma_id, titulo, data_aplicacao, status)
+VALUES (@helena, @turma_h, 'Simulado — Ligações químicas', '2026-11-25', 'pronta');
+SET @prova_h1 := LAST_INSERT_ID();
+
+INSERT INTO questoes (prova_id, ordem, enunciado, alternativas, resposta_correta, assunto) VALUES
+    (@prova_h1, 1, 'O sal de cozinha (NaCl) é formado por ligação:',
+     JSON_ARRAY('Covalente', 'Iônica', 'Metálica'), 1, 'Ligações químicas'),
+    (@prova_h1, 2, 'A molécula de água (H2O) tem ligações:',
+     JSON_ARRAY('Iônicas', 'Covalentes', 'Metálicas'), 1, 'Ligações químicas');
+
+INSERT INTO provas (usuario_id, turma_id, titulo, data_aplicacao, status)
+VALUES (@helena, @turma_h, 'Avaliação mensal — Tabela periódica', '2026-10-30', 'aprovada');
+SET @prova_h2 := LAST_INSERT_ID();
+
+INSERT INTO questoes (prova_id, ordem, enunciado, alternativas, resposta_correta, assunto) VALUES
+    (@prova_h2, 1, 'Os elementos de uma mesma coluna da tabela periódica formam um:',
+     JSON_ARRAY('Período', 'Grupo (família)', 'Bloco'), 1, 'Tabela periódica'),
+    (@prova_h2, 2, 'O sódio (Na) pertence à família dos:',
+     JSON_ARRAY('Metais alcalinos', 'Halogênios', 'Gases nobres'), 0, 'Tabela periódica'),
+    (@prova_h2, 3, 'Qual é o símbolo do ferro?',
+     JSON_ARRAY('F', 'Fe', 'Fr'), 1, NULL);

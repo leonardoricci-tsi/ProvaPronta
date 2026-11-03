@@ -2,7 +2,7 @@ import { Routes } from '@angular/router';
 
 import { authGuard } from './core/guards/auth.guard';
 import { guestGuard } from './core/guards/guest.guard';
-import { adminGuard } from './core/guards/role.guard';
+import { adminGuard, roleGuard } from './core/guards/role.guard';
 import { AppShell } from './layout/app-shell/app-shell';
 
 export const routes: Routes = [
@@ -76,6 +76,13 @@ export const routes: Routes = [
         // o navegador depois do checkout (?checkout=sucesso|cancelado).
         path: 'planos',
         loadComponent: () => import('./features/planos/planos').then((m) => m.Planos),
+      },
+      {
+        // Plano Escola. O guard só esconde a tela; o 403 é do backend.
+        path: 'relatorio',
+        canActivate: [roleGuard('coordenador')],
+        loadComponent: () =>
+          import('./features/coordenacao/relatorio').then((m) => m.Relatorio),
       },
       {
         path: 'admin',

@@ -34,6 +34,11 @@ export class ProvasService {
     return this.http.post<ProvaDetalhe>(`/provas/${id}/versao-b`, {});
   }
 
+  // Só coordenador pra cima (plano Escola): professor e Pro recebem 403.
+  aprovar(id: number): Observable<ProvaDetalhe> {
+    return this.http.post<ProvaDetalhe>(`/provas/${id}/aprovar`, {});
+  }
+
   enviarMaterial(id: number, arquivo: File): Observable<ProvaDetalhe> {
     // Sem Content-Type manual: o navegador monta o multipart com o boundary.
     const corpo = new FormData();

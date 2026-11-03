@@ -1,0 +1,96 @@
+<div class="cab-pagina">
+  <div class="pilha" style="gap: 6px">
+    <h1>Relatório da coordenação</h1>
+    <p class="suave">Provas por turma e por situação, e quais assuntos as questões cobrem. Plano Escola.</p>
+  </div>
+</div>
+
+@if (carregando()) {
+  <span class="sr-only" role="status">Carregando relatório…</span>
+  <div class="indicadores" aria-hidden="true">
+    @for (i of [1, 2, 3, 4, 5]; track i) {
+      <span class="esqueleto" style="height: 84px; border-radius: 10px"></span>
+    }
+  </div>
+} @else if (erro()) {
+  <div class="alerta alerta-erro" role="alert">
+    <app-icone nome="erro" />
+    <div class="alerta-corpo"><strong>{{ erro() }}</strong></div>
+  </div>
+} @else if (relatorio(); as r) {
+  <div class="indicadores">
+    <div class="indicador"><span class="ajuda">Turmas</span><strong>{{ r.totais.turmas }}</strong></div>
+    <div class="indicador"><span class="ajuda">Alunos</span><strong>{{ r.totais.alunos }}</strong></div>
+    <div class="indicador"><span class="ajuda">Provas</span><strong>{{ r.totais.provas }}</strong></div>
+    <div class="indicador"><span class="ajuda">Aprovadas</span><strong>{{ r.totais.provas_aprovadas }}</strong></div>
+    <div class="indicador"><span class="ajuda">Questões</span><strong>{{ r.totais.questoes }}</strong></div>
+  </div>
+
+  <section class="cartao" aria-labelledby="t-turmas">
+    <h2 class="cartao-titulo" id="t-turmas">Por turma</h2>
+    @if (r.turmas.length === 0) {
+      <p class="suave">Nenhuma turma ainda. <a routerLink="/app/turmas">Criar turma</a></p>
+    } @else {
+      <div class="tabela-caixa">
+        <table class="tabela">
+          <thead>
+            <tr>
+              <th scope="col">Turma</th>
+              <th scope="col" class="direita">Alunos</th>
+              <th scope="col" class="direita">Rascunho</th>
+              <th scope="col" class="direita">Pronta</th>
+              <th scope="col" class="direita">Aprovada</th>
+              <th scope="col" class="direita">Questões</th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (t of r.turmas; track t.id) {
+              <tr>
+                <td><a [routerLink]="['/app/turmas', t.id]">{{ t.nome }} — {{ t.disciplina }}</a><span class="ajuda" style="margin-left: 6px">{{ t.ano_letivo }}</span></td>
+                <td class="direita">{{ t.total_alunos }}</td>
+                <td class="direita">{{ t.provas.rascunho }}</td>
+                <td class="direita">{{ t.provas.pronta }}</td>
+                <td class="direita">{{ t.provas.aprovada }}</td>
+                <td class="direita">{{ t.total_questoes }}</td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+    }
+  </section>
+
+  <section class="cartao" aria-labelledby="t-assuntos">
+    <div class="cartao-cab">
+      <h2 class="cartao-titulo" id="t-assuntos">Por assunto</h2>
+      <span class="ajuda">Questões que cobrem cada assunto, em todas as provas</span>
+    </div>
+    @if (r.assuntos.length === 0) {
+      <p class="suave">Nenhuma questão ainda.</p>
+    } @else {
+      <div class="tabela-caixa">
+        <table class="tabela">
+          <thead>
+            <tr>
+              <th scope="col">Assunto</th>
+              <th scope="col" style="width: 40%"><span class="sr-only">Proporção</span></th>
+              <th scope="col" class="direita">Questões</th>
+              <th scope="col" class="direita">Provas</th>
+            </tr>
+          </thead>
+          <tbody>
+            @for (a of r.assuntos; track a.assunto) {
+              <tr>
+                <td [class.suave]="a.assunto === 'Sem assunto'">{{ a.assunto }}</td>
+                <td><div class="barra-assunto" [style.width]="largura(a.questoes)" aria-hidden="true"></div></td>
+                <td class="direita">{{ a.questoes }}</td>
+                <td class="direita">{{ a.provas }}</td>
+              </tr>
+            }
+          </tbody>
+        </table>
+      </div>
+      <p class="ajuda">Dica: marque o assunto de cada questão no editor da prova para o relatório ficar mais útil.</p>
+    }
+  </section>
+}

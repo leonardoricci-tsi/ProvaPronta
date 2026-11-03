@@ -56,7 +56,11 @@ export const PLANOS: Plano[] = [
     preco: 'R$ 199,90',
     periodo: '/mês',
     para: 'Para a coordenação da escola.',
-    itens: ['Tudo do Professor Pro', 'Pensado para a coordenação pedagógica'],
+    itens: [
+      'Tudo do Professor Pro',
+      'Aprovação de provas pela coordenação',
+      'Relatório por turma e por assunto',
+    ],
     chamada: 'Assinar para a escola',
   },
 ];

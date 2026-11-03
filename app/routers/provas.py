@@ -12,6 +12,7 @@ from app.openapi_responses import (
     RESP_401,
     RESP_403_LIMITE_FREE,
     RESP_404,
+    RESP_409_APROVACAO,
     RESP_502_STORAGE,
     RESP_ERROS_MATERIAL,
     resp_403_papel,
@@ -116,6 +117,11 @@ def editar_prova(
     if dados.questoes is not None:
         # Substitui a lista inteira: as antigas saem (delete-orphan).
         prova.questoes = _montar_questoes(dados.questoes)
+    # A aprovação vale pra prova como a coordenação viu: mexeu, perdeu.
+    # Volta pra "pronta" (ou pro status que o professor mandou) e precisa
+    # ser aprovada de novo.
+    if prova.status == "aprovada" and (campos or dados.questoes is not None):
+        prova.status = "pronta"
     db.commit()
     log_client.registrar_evento(usuario_atual.id, f"prova_editada:{prova.id}", ip=_ip(request))
     return prova
@@ -181,6 +187,34 @@ def gerar_versao_b(
         usuario_atual.id, f"prova_versao_b:{original.id}:nova:{versao_b.id}", ip=_ip(request)
     )
     return versao_b
+
+
+@router.post(
+    "/{prova_id}/aprovar",
+    response_model=ProvaDetalheOut,
+    responses=RESP_401 | resp_403_papel("coordenador") | RESP_404 | RESP_409_APROVACAO,
+)
+def aprovar_prova(
+    prova_id: int,
+    request: Request,
+    usuario_atual: UsuarioAutenticado = Depends(require_papel_minimo("coordenador")),
+    db: Session = Depends(get_db),
+) -> Prova:
+    """Só a coordenação (plano Escola) aprova: professor e Pro recebem 403,
+    mesmo chamando a API direto. Só prova "pronta" pode ser aprovada — um
+    rascunho ainda está sendo escrito."""
+    prova = get_owned_or_404(db, Prova, prova_id, usuario_atual.id)
+    if prova.status != "pronta":
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Só prova pronta pode ser aprovada"
+            if prova.status == "rascunho"
+            else "A prova já está aprovada",
+        )
+    prova.status = "aprovada"
+    db.commit()
+    log_client.registrar_evento(usuario_atual.id, f"prova_aprovada:{prova.id}", ip=_ip(request))
+    return prova
 
 
 @router.post(

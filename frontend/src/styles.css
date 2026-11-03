@@ -427,3 +427,9 @@ button { font: inherit; }
 /* O componente da rota é um elemento host dentro de .pagina: repassa o
    mesmo ritmo vertical (gap) para o conteúdo dele. */
 .pagina > :not(router-outlet) { display: flex; flex-direction: column; gap: var(--esp-5); min-width: 0; }
+.selo-aprovada { background: var(--cor-primaria-suave); color: var(--cor-primaria); }
+.indicadores { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(150px, 100%), 1fr)); gap: var(--esp-3); }
+.indicador { display: flex; flex-direction: column; gap: 2px; padding: var(--esp-4); background: var(--cor-superficie); border: 1px solid var(--cor-borda); border-radius: var(--raio-m); }
+.indicador strong { font: 800 1.75rem/1.1 var(--fonte-titulo); }
+.barra-assunto { height: 10px; border-radius: var(--raio-pilula); background: var(--cor-primaria); min-width: 4px; }
+.tabela .direita { text-align: right; font-variant-numeric: tabular-nums; }

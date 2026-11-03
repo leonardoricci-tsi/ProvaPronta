@@ -6,7 +6,7 @@ import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { mensagemDoBackend } from '../../../core/http-erro';
 import { ProvasService } from '../../../core/services/provas.service';
 import { TurmasService } from '../../../core/services/turmas.service';
-import { ProvaPayload, QuestaoPayload, StatusProva } from '../../../models/prova.model';
+import { ProvaPayload, QuestaoPayload, StatusEditavel } from '../../../models/prova.model';
 import { Turma } from '../../../models/turma.model';
 import { Icone } from '../../../shared/icone/icone';
 
@@ -53,7 +53,9 @@ export class ProvaForm implements OnInit {
   turmaId = 0;
   titulo = '';
   dataAplicacao = '';
-  status: StatusProva = 'rascunho';
+  status: StatusEditavel = 'rascunho';
+  // Editar uma prova aprovada tira a aprovação (o backend volta pra "pronta").
+  eraAprovada = false;
   questoes: QuestaoEditavel[] = [questaoVazia()];
 
   constructor(
@@ -82,7 +84,8 @@ export class ProvaForm implements OnInit {
           this.turmaId = prova.turma.id;
           this.titulo = prova.titulo;
           this.dataAplicacao = prova.data_aplicacao ?? '';
-          this.status = prova.status;
+          this.eraAprovada = prova.status === 'aprovada';
+          this.status = prova.status === 'aprovada' ? 'pronta' : prova.status;
           this.questoes = prova.questoes.map((q) => ({
             chave: proximaChave++,
             enunciado: q.enunciado,

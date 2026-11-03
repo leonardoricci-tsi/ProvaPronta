@@ -5,7 +5,9 @@ from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.database import Base, utc_now_naive
 
-STATUS_PROVA = ("rascunho", "pronta")
+# "aprovada" só a coordenação dá (POST /provas/{id}/aprovar, plano Escola);
+# o professor só alterna entre rascunho e pronta.
+STATUS_PROVA = ("rascunho", "pronta", "aprovada")
 
 
 class Prova(Base):

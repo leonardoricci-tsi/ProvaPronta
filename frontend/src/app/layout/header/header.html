@@ -16,6 +16,9 @@
       <a routerLink="/app/provas" routerLinkActive #rlaProvas="routerLinkActive" [attr.aria-current]="rlaProvas.isActive ? 'page' : null">Provas</a>
       <a routerLink="/app/turmas" routerLinkActive #rlaTurmas="routerLinkActive" [attr.aria-current]="rlaTurmas.isActive ? 'page' : null">Turmas</a>
       <a routerLink="/app/planos" routerLinkActive #rlaPlanos="routerLinkActive" [attr.aria-current]="rlaPlanos.isActive ? 'page' : null">Planos</a>
+      @if (authService.temPapelMinimo('coordenador')) {
+        <a routerLink="/app/relatorio" routerLinkActive #rlaRel="routerLinkActive" [attr.aria-current]="rlaRel.isActive ? 'page' : null">Relatório</a>
+      }
       @if (authService.isAdmin()) {
         <a routerLink="/app/admin" routerLinkActive #rlaAdmin="routerLinkActive" [attr.aria-current]="rlaAdmin.isActive ? 'page' : null">Admin</a>
       }
@@ -79,6 +82,12 @@
         <app-icone nome="cartao" />
         Planos
       </a>
+      @if (authService.temPapelMinimo('coordenador')) {
+        <a routerLink="/app/relatorio" routerLinkActive #gRel="routerLinkActive" [attr.aria-current]="gRel.isActive ? 'page' : null">
+          <app-icone nome="lista" />
+          Relatório
+        </a>
+      }
       @if (authService.isAdmin()) {
         <a routerLink="/app/admin" routerLinkActive #gAdmin="routerLinkActive" [attr.aria-current]="gAdmin.isActive ? 'page' : null">
           <app-icone nome="escudo" />

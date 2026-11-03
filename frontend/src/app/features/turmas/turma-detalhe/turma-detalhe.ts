@@ -4,6 +4,7 @@ import { HttpErrorResponse } from '@angular/common/http';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 
+import { SELO_STATUS } from '../../../core/status-prova';
 import { mensagemDoBackend } from '../../../core/http-erro';
 import { ProvasService } from '../../../core/services/provas.service';
 import { TurmasService } from '../../../core/services/turmas.service';
@@ -21,6 +22,7 @@ const DESARMAR_APAGAR_MS = 5000;
   templateUrl: './turma-detalhe.html',
 })
 export class TurmaDetalhe implements OnInit, OnDestroy {
+  readonly seloStatus = SELO_STATUS;
   private readonly route = inject(ActivatedRoute);
   private readonly destroyRef = inject(DestroyRef);
 

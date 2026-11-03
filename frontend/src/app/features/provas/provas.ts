@@ -3,6 +3,7 @@ import { Component, OnInit, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
 
+import { SELO_STATUS } from '../../core/status-prova';
 import { ProvasService } from '../../core/services/provas.service';
 import { TurmasService } from '../../core/services/turmas.service';
 import { Prova } from '../../models/prova.model';
@@ -16,6 +17,7 @@ import { Icone } from '../../shared/icone/icone';
   templateUrl: './provas.html',
 })
 export class Provas implements OnInit {
+  readonly seloStatus = SELO_STATUS;
   provas = signal<Prova[]>([]);
   turmas = signal<Turma[]>([]);
   carregando = signal(true);

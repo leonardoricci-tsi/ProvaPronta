@@ -1,5 +1,8 @@
 // Espelham app/schemas/prova.py.
-export type StatusProva = 'rascunho' | 'pronta';
+// "aprovada" só a coordenação dá (plano Escola); o professor alterna entre
+// rascunho e pronta.
+export type StatusProva = 'rascunho' | 'pronta' | 'aprovada';
+export type StatusEditavel = 'rascunho' | 'pronta';
 
 export interface QuestaoPayload {
   enunciado: string;
@@ -18,7 +21,7 @@ export interface ProvaPayload {
   turma_id: number;
   titulo: string;
   data_aplicacao: string | null;
-  status: StatusProva;
+  status: StatusEditavel;
   questoes: QuestaoPayload[];
 }
 

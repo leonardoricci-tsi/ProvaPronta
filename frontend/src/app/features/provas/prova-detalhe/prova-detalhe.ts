@@ -4,6 +4,7 @@ import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { HttpErrorResponse } from '@angular/common/http';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 
+import { SELO_STATUS } from '../../../core/status-prova';
 import { mensagemDoBackend } from '../../../core/http-erro';
 import { AuthService } from '../../../core/services/auth.service';
 import { ProvasService } from '../../../core/services/provas.service';
@@ -23,6 +24,7 @@ const DESARMAR_APAGAR_MS = 5000;
   templateUrl: './prova-detalhe.html',
 })
 export class ProvaDetalhe implements OnInit, OnDestroy {
+  readonly seloStatus = SELO_STATUS;
   private readonly route = inject(ActivatedRoute);
   private readonly destroyRef = inject(DestroyRef);
 
@@ -42,6 +44,12 @@ export class ProvaDetalhe implements OnInit, OnDestroy {
   // 403 do Free: em vez de erro, o convite pro Pro.
   versaoBSoPro = signal(false);
   versaoBGerada = signal<Prova | null>(null);
+
+  aprovando = signal(false);
+  // 403 de quem não é coordenador: o convite pro plano Escola.
+  aprovarSoEscola = signal(false);
+  aprovadaAgora = signal(false);
+  erroAprovar = signal('');
 
   private timerApagar?: ReturnType<typeof setTimeout>;
 
@@ -70,6 +78,9 @@ export class ProvaDetalhe implements OnInit, OnDestroy {
     this.erroVersaoB.set('');
     this.versaoBSoPro.set(false);
     this.versaoBGerada.set(null);
+    this.aprovarSoEscola.set(false);
+    this.aprovadaAgora.set(false);
+    this.erroAprovar.set('');
     this.cancelarRemocao();
     this.provasService.ver(id).subscribe({
       next: (prova) => {
@@ -89,6 +100,35 @@ export class ProvaDetalhe implements OnInit, OnDestroy {
 
   get ehPro(): boolean {
     return this.authService.temPapelMinimo('professor_pro');
+  }
+
+  get ehCoordenacao(): boolean {
+    return this.authService.temPapelMinimo('coordenador');
+  }
+
+  aprovar(): void {
+    const p = this.prova();
+    if (!p) return;
+    // Aparece pra todos com prova pronta: fora do plano Escola o backend
+    // responde 403 e a tela mostra o convite.
+    this.aprovando.set(true);
+    this.aprovarSoEscola.set(false);
+    this.erroAprovar.set('');
+    this.provasService.aprovar(p.id).subscribe({
+      next: (aprovada) => {
+        this.prova.set(aprovada);
+        this.aprovadaAgora.set(true);
+        this.aprovando.set(false);
+      },
+      error: (erro: HttpErrorResponse) => {
+        if (erro.status === 403) {
+          this.aprovarSoEscola.set(true);
+        } else {
+          this.erroAprovar.set(mensagemDoBackend(erro, 'Não foi possível aprovar a prova.'));
+        }
+        this.aprovando.set(false);
+      },
+    });
   }
 
   remover(): void {

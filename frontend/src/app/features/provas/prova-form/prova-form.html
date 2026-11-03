@@ -31,6 +31,15 @@
   </div>
 } @else {
   <form class="form" style="gap: 24px" (ngSubmit)="salvar()" novalidate>
+    @if (eraAprovada) {
+      <div class="alerta alerta-info" role="status">
+        <app-icone nome="info" />
+        <div class="alerta-corpo">
+          <strong>Esta prova foi aprovada pela coordenação.</strong>
+          <span>Ao salvar alterações, ela volta para "pronta" e precisa ser aprovada de novo.</span>
+        </div>
+      </div>
+    }
     <section class="cartao" aria-labelledby="t-dados">
       <h2 class="cartao-titulo" id="t-dados">Dados da prova</h2>
       <div class="campo" [class.campo-erro]="tentouSalvar() && !titulo.trim()">

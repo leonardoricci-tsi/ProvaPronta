@@ -24,7 +24,7 @@ Um SaaS para professores do fundamental e do médio: organizar turmas e alunos, 
 | Visitante | — | Sem conta | Landing (`/`), login, cadastro, "esqueci a senha" |
 | Professor Free | `professor` | Todo cadastro nasce aqui | 1 turma, 2 provas por mês, PDF da apostila, perfil |
 | Professor Pro | `professor_pro` | Assina R$ 29,90/mês no Stripe | Turmas e provas ilimitadas + versão B |
-| Escola / Coordenador | `coordenador` | Assina R$ 199,90/mês no Stripe | Tudo do Pro (o plano da coordenação; recursos próprios estão no roadmap) |
+| Escola / Coordenador | `coordenador` | Assina R$ 199,90/mês no Stripe | Tudo do Pro + aprovar prova + relatório da coordenação |
 | Admin | `admin` | Promovido por outro admin (o primeiro, direto no banco) | Tudo + usuários, papéis e log de auditoria |
 
 ### 1.2 Funcionalidades
@@ -38,6 +38,8 @@ Um SaaS para professores do fundamental e do médio: organizar turmas e alunos, 
 **Provas.** Cada prova pertence a uma turma do mesmo professor: título, data de aplicação opcional, situação (rascunho ou pronta) e questões. Cada questão tem enunciado, de 2 a 5 alternativas, a correta marcada e um assunto opcional. O detalhe mostra o gabarito destacado.
 
 **Versão B** (Pro ou acima). Copia a prova como rascunho na mesma turma, com as questões e as alternativas em outra ordem; o gabarito acompanha a troca.
+
+**Coordenação** (plano Escola). Aprovar uma prova pronta (status `aprovada`) e o relatório `/app/relatorio`: totais, provas por turma e por situação e quantas questões cobrem cada assunto.
 
 **PDF da apostila.** Um PDF por prova (até 10 MB), guardado no object storage e aberto por link temporário.
 
@@ -56,6 +58,7 @@ Um SaaS para professores do fundamental e do médio: organizar turmas e alunos, 
 | `/redefinir-senha` | todos | Senha nova a partir do link do e-mail |
 | `/app/provas`, `/app/provas/nova`, `/app/provas/:id`, `/app/provas/:id/editar` | logado | Lista, criação, detalhe e edição de provas |
 | `/app/turmas`, `/app/turmas/:id` | logado | Lista e detalhe de turmas (com alunos) |
+| `/app/relatorio` | coordenador ou acima | Relatório da coordenação |
 | `/app/planos` | logado | Planos e volta do checkout |
 | `/app/perfil`, `/app/perfil/:id` | logado | Próprio perfil / perfil de outro |
 | `/app/admin` | admin | Usuários e eventos de auditoria |
@@ -79,7 +82,7 @@ flowchart LR
 
     subgraph VM["VM do servidor da disciplina · Docker · stack no Portainer"]
         subgraph NET["rede interna catalog-net"]
-            API["<b>api</b> :8000<br/>FastAPI + Angular estático<br/>ÚNICA porta publicada"]
+            API["<b>api</b> :8000<br/>FastAPI + Angular estático<br/>turmas, provas, coordenação<br/>ÚNICA porta publicada"]
             AUTH["<b>auth-service</b> :8001<br/>usuários, login, JWT,<br/>papéis, reset de senha"]
             LOG["<b>log-service</b> :8002<br/>auditoria"]
             REDIS[("Redis<br/>Stream audit_log")]
@@ -160,6 +163,7 @@ Escada de papéis — cada um inclui os anteriores: `professor` (1) < `professor
 | R1 | Se o papel está abaixo de `professor_pro`, `POST /provas/{id}/versao-b` devolve `403 "Ação exige papel 'professor_pro' ou superior"` e registra `acesso_negado:professor_pro`. | `app/routers/provas.py`, `app/auth/dependencies.py` |
 | R2 | Se o usuário é Free e já tem 1 turma, criar outra devolve `403` e registra `acesso_negado:limite_free:turmas`. | `app/services/planos.py` |
 | R3 | Se o usuário é Free e já criou 2 provas no mês corrente (UTC), criar outra devolve `403` e registra `acesso_negado:limite_free:provas`. A versão B não conta (é só do Pro). | `app/services/planos.py` |
+| R3b | Se o papel está abaixo de `coordenador`, `POST /provas/{id}/aprovar` e `GET /coordenacao/relatorio` devolvem `403 "Ação exige papel 'coordenador' ou superior"` e registram `acesso_negado:coordenador`. | `app/routers/provas.py`, `app/routers/coordenacao.py` |
 | R4 | Se o papel não é exatamente `admin`, as rotas `/admin/*` e `/auth/admin/*` devolvem `403` e registram `acesso_negado:admin`. | `app/routers/admin.py`, `auth-service/app/auth/dependencies.py` |
 | R5 | O papel vem **só** do claim `role` do JWT, nunca do corpo ou dos parâmetros. | `app/auth/dependencies.py` |
 | R6 | Se um admin troca o papel de alguém para um valor fora de `professor`, `professor_pro`, `coordenador`, `admin`, recebe `400`; usuário inexistente, `404`. | `auth-service/app/routers/admin.py`, `auth-service/app/models/usuario.py` |
@@ -188,6 +192,9 @@ Escada de papéis — cada um inclui os anteriores: `professor` (1) < `professor
 | Q5 | A ordem das questões é a posição na lista enviada; o cliente não escolhe número. No `PATCH`, `questoes` substitui a lista inteira. | `app/routers/provas.py` |
 | Q6 | A versão B copia a prova como **rascunho** na mesma turma, com título "(versão B)", questões e alternativas sorteadas (`random.SystemRandom`) e o gabarito recalculado. | `app/routers/provas.py` |
 | Q7 | O gabarito só é devolvido no detalhe da prova, que só responde para o dono. | `app/schemas/prova.py`, `app/routers/provas.py` |
+| Q7b | Só prova `pronta` pode ser aprovada: rascunho dá `409 "Só prova pronta pode ser aprovada"` e prova já aprovada dá `409 "A prova já está aprovada"`. Aprovar registra `prova_aprovada:{id}`. | `app/routers/provas.py` |
+| Q7c | O status `aprovada` não é aceito no corpo de `POST`/`PATCH /provas` (`422`): ninguém se autoaprova pela API. Editar uma prova aprovada a devolve para `pronta`. | `app/schemas/prova.py`, `app/routers/provas.py` |
+| Q7d | O relatório da coordenação usa só os dados do próprio usuário; questão sem assunto entra como "Sem assunto". Consultar registra `relatorio_coordenacao_consultado`. | `app/routers/coordenacao.py` |
 | Q8 | Toda mudança registra `prova_criada`/`prova_editada`/`prova_removida`; a versão B registra `prova_versao_b:{original}:nova:{nova}`. | `app/routers/provas.py` |
 
 ### 3.5 PDF da apostila e foto de perfil
@@ -289,7 +296,7 @@ erDiagram
         int turma_id FK
         varchar titulo
         date data_aplicacao
-        varchar status "rascunho | pronta"
+        varchar status "rascunho | pronta | aprovada"
         varchar material_key
         varchar material_nome
     }
@@ -356,4 +363,4 @@ Comportamentos não óbvios, registrados para quem mexer depois:
 5. **`POST /logs` não tem autenticação**; a proteção é o isolamento de rede da `catalog-net`.
 6. **O log de auditoria nunca é podado** (`XADD` sem `MAXLEN`).
 7. **O logout pelo site não gera evento**: o botão "Sair" só limpa o `localStorage`, sem chamar `POST /auth/logout`.
-8. **O plano Escola ainda não tem recurso próprio**: hoje `coordenador` tem as mesmas permissões do Pro; revisão de provas pela coordenação está no roadmap.
+8. **A coordenação ainda não enxerga as provas dos professores da escola**: não existe a entidade "escola" ligando contas, então aprovar e o relatório valem para as provas do próprio coordenador. Ligar professores a uma escola está no roadmap.

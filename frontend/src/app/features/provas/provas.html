@@ -110,9 +110,7 @@
               PDF<span class="sr-only"> anexado</span>
             </span>
           }
-          <span class="selo" [class.selo-pronta]="prova.status === 'pronta'" [class.selo-rascunho]="prova.status === 'rascunho'">
-            {{ prova.status === 'pronta' ? 'Pronta' : 'Rascunho' }}
-          </span>
+          <span [class]="seloStatus[prova.status].classe">{{ seloStatus[prova.status].texto }}</span>
         </div>
       </li>
     }

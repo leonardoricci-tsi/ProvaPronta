@@ -3,7 +3,12 @@ from typing import Literal
 
 from pydantic import BaseModel, ConfigDict, Field, model_validator
 
-StatusProva = Literal["rascunho", "pronta"]
+# O que o professor pode escrever. "aprovada" fica de fora de propósito: só
+# a coordenação aprova, pela rota própria — mandar status "aprovada" no
+# corpo dá 422, então não há como se autoaprovar pela API.
+StatusEditavel = Literal["rascunho", "pronta"]
+# O que a API devolve.
+StatusProva = Literal["rascunho", "pronta", "aprovada"]
 
 
 class QuestaoIn(BaseModel):
@@ -35,7 +40,7 @@ class ProvaIn(BaseModel):
     turma_id: int
     titulo: str = Field(min_length=1, max_length=200, examples=["Avaliação bimestral — Citologia"])
     data_aplicacao: date | None = None
-    status: StatusProva = "rascunho"
+    status: StatusEditavel = "rascunho"
     questoes: list[QuestaoIn] = Field(default_factory=list, max_length=100)
 
 
@@ -46,7 +51,7 @@ class ProvaUpdateIn(BaseModel):
     turma_id: int | None = None
     titulo: str | None = Field(default=None, min_length=1, max_length=200)
     data_aplicacao: date | None = None
-    status: StatusProva | None = None
+    status: StatusEditavel | None = None
     questoes: list[QuestaoIn] | None = Field(default=None, max_length=100)
 
 

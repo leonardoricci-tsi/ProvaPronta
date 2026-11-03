@@ -28,9 +28,7 @@
     <div class="pilha" style="gap: 10px">
       <div class="linha">
         <h1>{{ p.titulo }}</h1>
-        <span class="selo" [class.selo-pronta]="p.status === 'pronta'" [class.selo-rascunho]="p.status === 'rascunho'">
-          {{ p.status === 'pronta' ? 'Pronta' : 'Rascunho' }}
-        </span>
+        <span [class]="seloStatus[p.status].classe">{{ seloStatus[p.status].texto }}</span>
       </div>
       <div class="item-meta" style="font-size: 1rem">
         <span><app-icone nome="pessoas" tamanho="p" /><a [routerLink]="['/app/turmas', p.turma.id]">{{ p.turma.nome }} — {{ p.turma.disciplina }}</a></span>
@@ -41,6 +39,15 @@
       </div>
     </div>
     <div class="linha" style="gap: 8px">
+      @if (p.status === 'pronta') {
+        <button class="btn btn-primario" type="button" (click)="aprovar()" [disabled]="aprovando()">
+          <app-icone nome="check" />
+          {{ aprovando() ? 'Aprovando…' : 'Aprovar prova' }}
+          @if (!ehCoordenacao) {
+            <span class="selo selo-escola">Escola</span>
+          }
+        </button>
+      }
       <a class="btn btn-secundario" [routerLink]="['/app/provas', p.id, 'editar']">
         <app-icone nome="editar" />
         Editar
@@ -82,6 +89,28 @@
       </div>
     </div>
   }
+  @if (aprovarSoEscola()) {
+    <div class="alerta alerta-aviso" role="alert">
+      <app-icone nome="cadeado" />
+      <div class="alerta-corpo">
+        <strong>Aprovar prova é um recurso do plano Escola.</strong>
+        <span>A coordenação revisa e aprova a prova antes da impressão — e acompanha tudo no relatório por turma e por assunto.</span>
+        <div class="linha">
+          <a class="btn btn-primario" routerLink="/app/planos">Conhecer o plano Escola</a>
+          <button class="btn btn-fantasma" type="button" (click)="aprovarSoEscola.set(false)">Agora não</button>
+        </div>
+      </div>
+    </div>
+  }
+  @if (aprovadaAgora()) {
+    <div class="alerta alerta-sucesso" role="status">
+      <app-icone nome="check" />
+      <div class="alerta-corpo">
+        <strong>Prova aprovada pela coordenação.</strong>
+        <span>Se ela for editada, volta para "pronta" e precisa ser aprovada de novo.</span>
+      </div>
+    </div>
+  }
   @if (versaoBGerada(); as nova) {
     <div class="alerta alerta-sucesso" role="status">
       <app-icone nome="check" />
@@ -92,10 +121,10 @@
       </div>
     </div>
   }
-  @if (erroVersaoB() || erro()) {
+  @if (erroVersaoB() || erroAprovar() || erro()) {
     <div class="alerta alerta-erro" role="alert">
       <app-icone nome="erro" />
-      <div class="alerta-corpo"><strong>{{ erroVersaoB() || erro() }}</strong></div>
+      <div class="alerta-corpo"><strong>{{ erroVersaoB() || erroAprovar() || erro() }}</strong></div>
     </div>
   }
 
@@ -185,6 +214,8 @@
           <dd><a [routerLink]="['/app/turmas', p.turma.id]">{{ p.turma.nome }} — {{ p.turma.disciplina }}</a></dd>
           <dt>Aplicação</dt>
           <dd>{{ p.data_aplicacao ? (p.data_aplicacao | date: 'dd/MM/yyyy' : 'UTC') : 'Sem data' }}</dd>
+          <dt>Situação</dt>
+          <dd><span [class]="seloStatus[p.status].classe">{{ seloStatus[p.status].texto }}</span></dd>
           <dt>Questões</dt>
           <dd>{{ p.total_questoes }}</dd>
           <dt>Atualizada</dt>
