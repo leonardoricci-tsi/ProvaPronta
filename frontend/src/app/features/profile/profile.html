@@ -1,86 +1,96 @@
 @if (carregando()) {
-  <p>Carregando...</p>
+  <span class="sr-only" role="status">Carregando perfil…</span>
+  <span class="esqueleto" style="height: 320px; border-radius: 16px; max-width: 760px" aria-hidden="true"></span>
 } @else if (perfil(); as p) {
-  <section class="cabecalho">
-    <div class="foto-area">
-      @if (p.foto_url) {
-        <img class="foto" [src]="p.foto_url" [alt]="'Foto de ' + p.nome" />
-      } @else {
-        <div class="foto foto-vazia">{{ iniciais }}</div>
-      }
+  <div class="pilha" style="max-width: 760px; width: 100%; gap: 24px; align-self: center">
+    <h1 style="font-size: clamp(1.75rem, 4vw, 2.25rem)">{{ p.eh_meu ? 'Meu perfil' : p.nome }}</h1>
 
-      <!-- Só interface: quem garante que só o dono troca a foto é o 403 do backend. -->
+    <form class="cartao form" style="gap: 24px" (ngSubmit)="salvarBio()">
+      <div class="perfil-topo">
+        <span class="avatar avatar-g" aria-hidden="true">
+          @if (p.foto_url) {
+            <img [src]="p.foto_url" alt="" />
+          } @else {
+            {{ iniciais }}
+          }
+        </span>
+        <div class="pilha" style="gap: 10px">
+          <div class="linha" style="gap: 10px">
+            <strong style="font: 700 1.375rem var(--fonte-titulo)">{{ p.nome }}</strong>
+            <span [class]="selo.classe">{{ selo.texto }}</span>
+          </div>
+          <!-- Só interface: quem garante que só o dono troca a foto é o 403 do backend. -->
+          @if (p.eh_meu) {
+            <div class="linha" style="gap: 8px">
+              <label class="btn btn-secundario" [class.ocupado]="enviandoFoto()">
+                <app-icone nome="camera" />
+                {{ enviandoFoto() ? 'Enviando…' : p.foto_url ? 'Trocar foto' : 'Enviar foto' }}
+                <input class="sr-only" type="file" [accept]="tiposAceitos" [disabled]="enviandoFoto()" (change)="escolherFoto($event)" />
+              </label>
+            </div>
+            <span class="ajuda">JPG, PNG ou WEBP, até 2 MB. Sem foto, mostramos suas iniciais.</span>
+          }
+          @if (erroFoto()) {
+            <span class="msg-erro" role="alert"><app-icone nome="erro" tamanho="p" />{{ erroFoto() }}</span>
+          }
+        </div>
+      </div>
+
       @if (p.eh_meu) {
-        <label class="btn-foto" [class.desabilitado]="enviandoFoto()">
-          {{ enviandoFoto() ? 'Enviando...' : p.foto_url ? 'Trocar foto' : 'Enviar foto' }}
-          <input
-            type="file"
-            [accept]="tiposAceitos"
-            [disabled]="enviandoFoto()"
-            (change)="escolherFoto($event)"
-            hidden
-          />
-        </label>
-      }
-      @if (erroFoto()) {
-        <p class="erro">{{ erroFoto() }}</p>
-      }
-    </div>
+        <div class="campo">
+          <label for="pf-email">E-mail</label>
+          <input class="entrada" id="pf-email" type="email" [value]="authService.usuario()?.email ?? ''" readonly
+            aria-describedby="pf-email-ajuda" />
+          <span class="ajuda" id="pf-email-ajuda">Para trocar o e-mail, fale com o suporte.</span>
+        </div>
+        <div class="campo">
+          <label for="pf-bio">Bio <span class="opcional">(opcional)</span></label>
+          <textarea class="entrada" id="pf-bio" name="bio" [maxlength]="bioMaximo" aria-describedby="pf-bio-cont"
+            placeholder="Conte um pouco sobre você: disciplinas, escola, séries."
+            [ngModel]="bioRascunho()" (ngModelChange)="bioRascunho.set($event); bioSalva.set(false)"></textarea>
+          <span class="ajuda contador" id="pf-bio-cont">{{ bioRascunho().length }}/{{ bioMaximo }}</span>
+        </div>
 
-    <div class="info">
-      <h1>
-        {{ p.nome }}
-        @if (p.plano) {
-          <span class="selo-premium" title="Assinante de um plano pago">★ {{ nomePlano(p.plano) }}</span>
+        <div class="cartao" style="box-shadow: none; background: var(--cor-fundo); padding: 16px">
+          <div class="cartao-cab">
+            <div class="pilha" style="gap: 4px">
+              <span class="rotulo">Plano</span>
+              <span class="suave">Você está no {{ nomePlano }}.</span>
+            </div>
+            <a class="btn btn-secundario" routerLink="/app/planos">Ver planos</a>
+          </div>
+        </div>
+
+        @if (bioSalva()) {
+          <div class="alerta alerta-sucesso" role="status">
+            <app-icone nome="check" />
+            <div class="alerta-corpo"><strong>Perfil atualizado.</strong></div>
+          </div>
         }
-      </h1>
+        @if (erro()) {
+          <div class="alerta alerta-erro" role="alert">
+            <app-icone nome="erro" />
+            <div class="alerta-corpo"><strong>{{ erro() }}</strong></div>
+          </div>
+        }
 
-      @if (editandoBio()) {
-        <textarea
-          [ngModel]="bioRascunho()"
-          (ngModelChange)="bioRascunho.set($event)"
-          [maxlength]="bioMaximo"
-          rows="3"
-          placeholder="Conte um pouco sobre você (e sobre o Tom Hanks)"
-        ></textarea>
-        <div class="acoes-bio">
-          <span class="contador">{{ bioRascunho().length }}/{{ bioMaximo }}</span>
-          <button class="btn-secundario" (click)="cancelarEdicaoBio()">Cancelar</button>
-          <button class="btn-primario" [disabled]="salvandoBio()" (click)="salvarBio()">
-            {{ salvandoBio() ? 'Salvando...' : 'Salvar' }}
+        <div class="linha" style="justify-content: flex-end; gap: 8px">
+          <button class="btn btn-fantasma" type="button" (click)="descartarBio()">Descartar</button>
+          <button class="btn btn-primario" type="submit" [disabled]="salvandoBio() || bioRascunho() === p.bio">
+            {{ salvandoBio() ? 'Salvando…' : 'Salvar alterações' }}
           </button>
         </div>
       } @else {
-        <p class="bio" [class.vazia]="!p.bio">
-          {{ p.bio || (p.eh_meu ? 'Você ainda não escreveu uma bio.' : 'Sem bio por enquanto.') }}
-        </p>
-        @if (p.eh_meu) {
-          <button class="btn-secundario" (click)="comecarEdicaoBio()">Editar bio</button>
-        }
+        <p [class.suave]="!p.bio" style="white-space: pre-line">{{ p.bio || 'Sem bio por enquanto.' }}</p>
       }
-      @if (erro()) {
-        <p class="erro">{{ erro() }}</p>
-      }
-    </div>
-  </section>
-
-  <h2>Filmes favoritos</h2>
-  @if (p.favoritos.length === 0) {
-    <p class="vazio">Nenhum filme favoritado ainda.</p>
-  } @else {
-    <div class="grid">
-      @for (favorito of p.favoritos; track favorito.id) {
-        <figure class="filme">
-          @if (posterUrl(favorito.poster_path); as poster) {
-            <img [src]="poster" [alt]="favorito.titulo" loading="lazy" />
-          } @else {
-            <div class="poster-vazio">Sem pôster</div>
-          }
-          <figcaption>{{ favorito.titulo }}</figcaption>
-        </figure>
-      }
-    </div>
-  }
+    </form>
+  </div>
 } @else {
-  <p class="erro">{{ erro() }}</p>
+  <div class="vazio">
+    <span class="vazio-ic" style="background: var(--cor-perigo-suave); color: var(--cor-perigo)">
+      <app-icone nome="pessoa" tamanho="g" />
+    </span>
+    <h2>{{ erro() }}</h2>
+    <a class="btn btn-primario" routerLink="/app/provas">Voltar para Minhas provas</a>
+  </div>
 }

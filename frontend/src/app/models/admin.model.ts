@@ -6,22 +6,10 @@ export interface AdminUsuario {
   criado_em: string;
 }
 
-export interface AdminComentario {
-  id: number;
-  tmdb_movie_id: number;
-  titulo: string | null;
-  poster_path: string | null;
-  nome_usuario: string | null;
-  texto: string;
-  criado_em: string;
-  meu: boolean;
-}
-
-export interface AdminFavorito {
-  id: number;
-  tmdb_movie_id: number;
-  titulo: string;
-  poster_path: string | null;
-  criado_em: string;
+// Evento de auditoria do log-service (GET /admin/logs).
+export interface EventoAuditoria {
   usuario_id: number;
+  acao: string;
+  timestamp: string;
+  ip: string | null;
 }

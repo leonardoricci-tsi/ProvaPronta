@@ -1,5 +1,3 @@
-import { Favorite } from './favorite.model';
-
 export interface Profile {
   usuario_id: number;
   nome: string;
@@ -10,5 +8,4 @@ export interface Profile {
   eh_meu: boolean;
   // Plano pago ativo (atividade 7): professor_pro / coordenador, ou null.
   plano: string | null;
-  favoritos: Favorite[];
 }

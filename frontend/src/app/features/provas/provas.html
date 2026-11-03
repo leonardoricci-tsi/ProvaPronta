@@ -1,0 +1,120 @@
+<div class="cab-pagina">
+  <div class="pilha" style="gap: 6px">
+    <h1>Minhas provas</h1>
+    @if (!carregando() && turmasCarregadas() && provas().length > 0) {
+      <p class="suave">{{ resumo }}</p>
+    }
+  </div>
+  @if (turmasCarregadas() && turmas().length === 0) {
+    <span class="btn btn-primario" aria-disabled="true">
+      <app-icone nome="mais" />
+      Nova prova
+    </span>
+  } @else {
+    <a class="btn btn-primario" routerLink="/app/provas/nova" [queryParams]="turmaFiltro ? { turma: turmaFiltro } : {}">
+      <app-icone nome="mais" />
+      Nova prova
+    </a>
+  }
+</div>
+
+@if (turmas().length > 1) {
+  <div class="barra-filtros">
+    <div class="campo" style="min-width: 260px">
+      <label for="f-turma">Filtrar por turma</label>
+      <div class="selecao">
+        <select class="entrada" id="f-turma" [(ngModel)]="turmaFiltro" (ngModelChange)="carregar()">
+          <option [ngValue]="0">Todas as turmas</option>
+          @for (turma of turmas(); track turma.id) {
+            <option [ngValue]="turma.id">{{ turma.nome }} — {{ turma.disciplina }}</option>
+          }
+        </select>
+        <app-icone nome="setaBaixo" />
+      </div>
+    </div>
+  </div>
+}
+
+@if (carregando() || !turmasCarregadas()) {
+  <span class="sr-only" role="status">Carregando provas…</span>
+  <ul class="lista" aria-hidden="true">
+    @for (largura of ['55%', '45%', '62%']; track $index) {
+      <li class="item">
+        <div class="item-principal">
+          <span class="esqueleto" [style.width]="largura" style="height: 20px"></span>
+          <span class="esqueleto" style="width: 38%; height: 14px"></span>
+        </div>
+        <span class="esqueleto" style="width: 80px; height: 24px; border-radius: 999px"></span>
+      </li>
+    }
+  </ul>
+} @else if (erro()) {
+  <div class="alerta alerta-erro" role="alert">
+    <app-icone nome="erro" />
+    <div class="alerta-corpo"><strong>{{ erro() }}</strong></div>
+  </div>
+} @else if (turmas().length === 0) {
+  <div class="vazio">
+    <span class="vazio-ic"><app-icone nome="pessoas" tamanho="g" /></span>
+    <h2>Crie uma turma primeiro</h2>
+    <p>Toda prova pertence a uma turma. Cadastre a primeira — por exemplo “1º A — Biologia” — e depois monte a prova.</p>
+    <a class="btn btn-primario" routerLink="/app/turmas">
+      <app-icone nome="mais" />
+      Criar turma
+    </a>
+  </div>
+} @else if (provas().length === 0 && turmaFiltro) {
+  <div class="alerta alerta-info">
+    <app-icone nome="info" />
+    <div class="alerta-corpo">
+      <strong>Nenhuma prova nesta turma ainda.</strong>
+      <a routerLink="/app/provas/nova" [queryParams]="{ turma: turmaFiltro }">Criar prova para esta turma</a>
+    </div>
+  </div>
+} @else if (provas().length === 0) {
+  <div class="vazio">
+    <span class="vazio-ic"><app-icone nome="pdfNovo" tamanho="g" /></span>
+    <h2>Nenhuma prova por aqui</h2>
+    <p>
+      Sua turma <strong>{{ turmas()[0].nome }} — {{ turmas()[0].disciplina }}</strong> está pronta.
+      Monte a primeira prova: enunciado, alternativas e a correta marcada.
+    </p>
+    <a class="btn btn-primario" routerLink="/app/provas/nova">
+      <app-icone nome="mais" />
+      Montar primeira prova
+    </a>
+  </div>
+} @else {
+  <ul class="lista">
+    @for (prova of provas(); track prova.id) {
+      <li class="item">
+        <div class="item-principal">
+          <a class="item-titulo" [routerLink]="['/app/provas', prova.id]">{{ prova.titulo }}</a>
+          <div class="item-meta">
+            <span><app-icone nome="pessoas" tamanho="p" />{{ prova.turma.nome }} — {{ prova.turma.disciplina }}</span>
+            <span><app-icone nome="lista" tamanho="p" />{{ prova.total_questoes }} {{ prova.total_questoes === 1 ? 'questão' : 'questões' }}</span>
+            <span>
+              <app-icone nome="calendario" tamanho="p" />
+              @if (prova.data_aplicacao) {
+                Aplicação {{ prova.data_aplicacao | date: 'dd/MM/yyyy' : 'UTC' }}
+              } @else {
+                Sem data
+              }
+            </span>
+          </div>
+        </div>
+        <div class="item-lado">
+          @if (prova.material_nome) {
+            <span class="pdf-anexo" title="PDF da apostila anexado">
+              <app-icone nome="pdf" tamanho="p" />
+              PDF<span class="sr-only"> anexado</span>
+            </span>
+          }
+          <span class="selo" [class.selo-pronta]="prova.status === 'pronta'" [class.selo-rascunho]="prova.status === 'rascunho'">
+            {{ prova.status === 'pronta' ? 'Pronta' : 'Rascunho' }}
+          </span>
+        </div>
+      </li>
+    }
+  </ul>
+}

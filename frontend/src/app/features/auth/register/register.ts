@@ -1,16 +1,16 @@
-import { CommonModule } from '@angular/common';
 import { Component, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { Router, RouterLink } from '@angular/router';
 
 import { AuthService } from '../../../core/services/auth.service';
+import { Icone } from '../../../shared/icone/icone';
+import { Logo } from '../../../shared/logo/logo';
 
 @Component({
   selector: 'app-register',
   standalone: true,
-  imports: [CommonModule, FormsModule, RouterLink],
+  imports: [FormsModule, RouterLink, Icone, Logo],
   templateUrl: './register.html',
-  styleUrl: '../auth-shared.css',
 })
 export class Register {
   nome = '';
@@ -33,7 +33,7 @@ export class Register {
       .subscribe({
         next: () => {
           this.carregando.set(false);
-          this.router.navigate(['/app']);
+          this.router.navigate(['/app/provas']);
         },
         error: (erro) => {
           this.carregando.set(false);

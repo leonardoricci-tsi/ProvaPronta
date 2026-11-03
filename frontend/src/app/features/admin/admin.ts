@@ -1,41 +1,36 @@
-import { CommonModule } from '@angular/common';
+import { DatePipe } from '@angular/common';
 import { Component, OnInit, signal } from '@angular/core';
 
+import { SELO_PAPEL } from '../../core/papeis';
 import { AdminService } from '../../core/services/admin.service';
-import { AdminComentario, AdminFavorito, AdminUsuario } from '../../models/admin.model';
+import { AdminUsuario, EventoAuditoria } from '../../models/admin.model';
+import { Icone } from '../../shared/icone/icone';
 
-type Aba = 'usuarios' | 'comentarios' | 'favoritos';
+type Aba = 'usuarios' | 'eventos';
 
 @Component({
   selector: 'app-admin',
   standalone: true,
-  imports: [CommonModule],
+  imports: [DatePipe, Icone],
   templateUrl: './admin.html',
-  styleUrl: './admin.css',
 })
 export class Admin implements OnInit {
-  readonly PAPEIS = ['professor', 'professor_pro', 'coordenador', 'admin'];
+  readonly PAPEIS = Object.keys(SELO_PAPEL);
+  readonly SELO_PAPEL = SELO_PAPEL;
 
   abaAtiva = signal<Aba>('usuarios');
 
   usuarios = signal<AdminUsuario[]>([]);
-  comentarios = signal<AdminComentario[]>([]);
-  favoritos = signal<AdminFavorito[]>([]);
-
+  eventos = signal<EventoAuditoria[]>([]);
   carregandoUsuarios = signal(true);
-  carregandoComentarios = signal(true);
-  carregandoFavoritos = signal(true);
+  carregandoEventos = signal(true);
+  erroEventos = signal('');
 
   constructor(private readonly adminService: AdminService) {}
 
   ngOnInit(): void {
     this.carregarUsuarios();
-    this.carregarComentarios();
-    this.carregarFavoritos();
-  }
-
-  trocarAba(aba: Aba): void {
-    this.abaAtiva.set(aba);
+    this.carregarEventos();
   }
 
   private carregarUsuarios(): void {
@@ -49,25 +44,18 @@ export class Admin implements OnInit {
     });
   }
 
-  private carregarComentarios(): void {
-    this.carregandoComentarios.set(true);
-    this.adminService.listarComentarios().subscribe({
-      next: (comentarios) => {
-        this.comentarios.set(comentarios);
-        this.carregandoComentarios.set(false);
+  carregarEventos(): void {
+    this.carregandoEventos.set(true);
+    this.erroEventos.set('');
+    this.adminService.listarEventos().subscribe({
+      next: (eventos) => {
+        this.eventos.set(eventos);
+        this.carregandoEventos.set(false);
       },
-      error: () => this.carregandoComentarios.set(false),
-    });
-  }
-
-  private carregarFavoritos(): void {
-    this.carregandoFavoritos.set(true);
-    this.adminService.listarFavoritos().subscribe({
-      next: (favoritos) => {
-        this.favoritos.set(favoritos);
-        this.carregandoFavoritos.set(false);
+      error: () => {
+        this.erroEventos.set('Não foi possível ler os eventos do log-service.');
+        this.carregandoEventos.set(false);
       },
-      error: () => this.carregandoFavoritos.set(false),
     });
   }
 
@@ -86,20 +74,6 @@ export class Admin implements OnInit {
           atual.map((u) => (u.id === usuario.id ? { ...u, role: papelAnterior } : u)),
         );
       },
-    });
-  }
-
-  removerComentario(comentario: AdminComentario): void {
-    this.comentarios.update((atual) => atual.filter((c) => c.id !== comentario.id));
-    this.adminService.removerComentario(comentario.id).subscribe({
-      error: () => this.carregarComentarios(),
-    });
-  }
-
-  removerFavorito(favorito: AdminFavorito): void {
-    this.favoritos.update((atual) => atual.filter((f) => f.id !== favorito.id));
-    this.adminService.removerFavorito(favorito.id).subscribe({
-      error: () => this.carregarFavoritos(),
     });
   }
 }

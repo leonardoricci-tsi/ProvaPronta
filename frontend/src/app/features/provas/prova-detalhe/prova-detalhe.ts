@@ -1,0 +1,196 @@
+import { DatePipe } from '@angular/common';
+import { Component, DestroyRef, OnDestroy, OnInit, inject, signal } from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
+import { HttpErrorResponse } from '@angular/common/http';
+import { ActivatedRoute, Router, RouterLink } from '@angular/router';
+
+import { mensagemDoBackend } from '../../../core/http-erro';
+import { AuthService } from '../../../core/services/auth.service';
+import { ProvasService } from '../../../core/services/provas.service';
+import { ProvaDetalhe as Prova } from '../../../models/prova.model';
+import { Icone } from '../../../shared/icone/icone';
+
+// Espelha TAMANHO_MAXIMO_MATERIAL do backend só pra avisar antes do upload;
+// quem recusa de verdade é o servidor (413/415, conferindo os bytes).
+const TAMANHO_MAXIMO_PDF = 10 * 1024 * 1024;
+// O "clique de novo para apagar" desarma sozinho depois disso.
+const DESARMAR_APAGAR_MS = 5000;
+
+@Component({
+  selector: 'app-prova-detalhe',
+  standalone: true,
+  imports: [DatePipe, RouterLink, Icone],
+  templateUrl: './prova-detalhe.html',
+})
+export class ProvaDetalhe implements OnInit, OnDestroy {
+  private readonly route = inject(ActivatedRoute);
+  private readonly destroyRef = inject(DestroyRef);
+
+  readonly letras = 'ABCDE';
+
+  prova = signal<Prova | null>(null);
+  carregando = signal(true);
+  naoEncontrada = signal(false);
+  erro = signal('');
+  confirmandoRemocao = signal(false);
+
+  enviandoPdf = signal(false);
+  erroPdf = signal('');
+
+  gerandoVersaoB = signal(false);
+  erroVersaoB = signal('');
+  // 403 do Free: em vez de erro, o convite pro Pro.
+  versaoBSoPro = signal(false);
+  versaoBGerada = signal<Prova | null>(null);
+
+  private timerApagar?: ReturnType<typeof setTimeout>;
+
+  constructor(
+    private readonly provasService: ProvasService,
+    readonly authService: AuthService,
+    private readonly router: Router,
+  ) {}
+
+  ngOnInit(): void {
+    // paramMap: a versão B navega pra outra prova reaproveitando o componente.
+    this.route.paramMap.pipe(takeUntilDestroyed(this.destroyRef)).subscribe((params) => {
+      this.carregar(Number(params.get('id')));
+    });
+  }
+
+  ngOnDestroy(): void {
+    clearTimeout(this.timerApagar);
+  }
+
+  private carregar(id: number): void {
+    this.carregando.set(true);
+    this.naoEncontrada.set(false);
+    this.erro.set('');
+    this.erroPdf.set('');
+    this.erroVersaoB.set('');
+    this.versaoBSoPro.set(false);
+    this.versaoBGerada.set(null);
+    this.cancelarRemocao();
+    this.provasService.ver(id).subscribe({
+      next: (prova) => {
+        this.prova.set(prova);
+        this.carregando.set(false);
+      },
+      error: (erro: HttpErrorResponse) => {
+        // Prova de outro professor também dá 404 (não 403): pra quem não é
+        // dono, ela simplesmente não existe.
+        this.prova.set(null);
+        this.naoEncontrada.set(erro.status === 404);
+        this.erro.set(erro.status === 404 ? '' : 'Não foi possível carregar a prova.');
+        this.carregando.set(false);
+      },
+    });
+  }
+
+  get ehPro(): boolean {
+    return this.authService.temPapelMinimo('professor_pro');
+  }
+
+  remover(): void {
+    const p = this.prova();
+    if (!p) return;
+    // Dois cliques em vez de confirm(): o primeiro só arma o botão.
+    if (!this.confirmandoRemocao()) {
+      this.confirmandoRemocao.set(true);
+      this.timerApagar = setTimeout(() => this.confirmandoRemocao.set(false), DESARMAR_APAGAR_MS);
+      return;
+    }
+    clearTimeout(this.timerApagar);
+    this.provasService.remover(p.id).subscribe({
+      next: () => this.router.navigate(['/app/provas']),
+      error: (erro: HttpErrorResponse) => {
+        this.erro.set(mensagemDoBackend(erro, 'Não foi possível apagar a prova.'));
+        this.confirmandoRemocao.set(false);
+      },
+    });
+  }
+
+  cancelarRemocao(): void {
+    clearTimeout(this.timerApagar);
+    this.confirmandoRemocao.set(false);
+  }
+
+  gerarVersaoB(): void {
+    const p = this.prova();
+    if (!p) return;
+    // O botão aparece pra todos de propósito: no Free o backend responde
+    // 403 e a mensagem dele vira o convite pro plano Pro.
+    this.gerandoVersaoB.set(true);
+    this.erroVersaoB.set('');
+    this.versaoBSoPro.set(false);
+    this.versaoBGerada.set(null);
+    this.provasService.gerarVersaoB(p.id).subscribe({
+      next: (nova) => {
+        this.gerandoVersaoB.set(false);
+        this.versaoBGerada.set(nova);
+      },
+      error: (erro: HttpErrorResponse) => {
+        if (erro.status === 403) {
+          this.versaoBSoPro.set(true);
+        } else {
+          this.erroVersaoB.set(mensagemDoBackend(erro, 'Não foi possível gerar a versão B.'));
+        }
+        this.gerandoVersaoB.set(false);
+      },
+    });
+  }
+
+  escolherPdf(evento: Event): void {
+    const input = evento.target as HTMLInputElement;
+    const arquivo = input.files?.[0];
+    input.value = ''; // permite escolher o mesmo arquivo de novo depois de um erro
+    const p = this.prova();
+    if (!arquivo || !p) return;
+
+    this.erroPdf.set('');
+    if (arquivo.size > TAMANHO_MAXIMO_PDF) {
+      this.erroPdf.set('O PDF precisa ter até 10 MB.');
+      return;
+    }
+    this.enviandoPdf.set(true);
+    this.provasService.enviarMaterial(p.id, arquivo).subscribe({
+      next: (atualizada) => {
+        this.prova.set(atualizada);
+        this.enviandoPdf.set(false);
+      },
+      error: (erro: HttpErrorResponse) => {
+        this.erroPdf.set(mensagemDoBackend(erro, 'Não foi possível enviar o PDF.'));
+        this.enviandoPdf.set(false);
+      },
+    });
+  }
+
+  abrirPdf(): void {
+    const p = this.prova();
+    if (!p) return;
+    // A URL é pré-assinada e expira: pede uma nova a cada clique. A aba é
+    // aberta já no clique (antes da resposta) pra o navegador não tratar
+    // como pop-up.
+    const aba = window.open('', '_blank');
+    this.provasService.abrirMaterial(p.id).subscribe({
+      next: (material) => {
+        if (aba) aba.location.href = material.url;
+        else window.location.href = material.url;
+      },
+      error: (erro: HttpErrorResponse) => {
+        aba?.close();
+        this.erroPdf.set(mensagemDoBackend(erro, 'Não foi possível abrir o PDF.'));
+      },
+    });
+  }
+
+  removerPdf(): void {
+    const p = this.prova();
+    if (!p) return;
+    this.provasService.removerMaterial(p.id).subscribe({
+      next: () => this.prova.set({ ...p, material_nome: null }),
+      error: (erro: HttpErrorResponse) =>
+        this.erroPdf.set(mensagemDoBackend(erro, 'Não foi possível remover o PDF.')),
+    });
+  }
+}

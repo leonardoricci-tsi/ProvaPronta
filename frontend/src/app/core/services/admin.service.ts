@@ -1,8 +1,8 @@
 import { Injectable } from '@angular/core';
-import { HttpClient } from '@angular/common/http';
+import { HttpClient, HttpParams } from '@angular/common/http';
 import { Observable } from 'rxjs';
 
-import { AdminComentario, AdminFavorito, AdminUsuario } from '../../models/admin.model';
+import { AdminUsuario, EventoAuditoria } from '../../models/admin.model';
 
 @Injectable({ providedIn: 'root' })
 export class AdminService {
@@ -16,19 +16,7 @@ export class AdminService {
     return this.http.patch<AdminUsuario>(`/auth/admin/users/${usuarioId}/role`, { role });
   }
 
-  listarComentarios(): Observable<AdminComentario[]> {
-    return this.http.get<AdminComentario[]>('/admin/comments');
-  }
-
-  removerComentario(id: number): Observable<void> {
-    return this.http.delete<void>(`/admin/comments/${id}`);
-  }
-
-  listarFavoritos(): Observable<AdminFavorito[]> {
-    return this.http.get<AdminFavorito[]>('/admin/favorites');
-  }
-
-  removerFavorito(id: number): Observable<void> {
-    return this.http.delete<void>(`/admin/favorites/${id}`);
+  listarEventos(limite = 100): Observable<EventoAuditoria[]> {
+    return this.http.get<EventoAuditoria[]>('/admin/logs', { params: new HttpParams().set('limit', limite) });
   }
 }

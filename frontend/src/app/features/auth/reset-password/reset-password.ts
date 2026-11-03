@@ -1,16 +1,16 @@
-import { CommonModule } from '@angular/common';
 import { Component, signal } from '@angular/core';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, RouterLink } from '@angular/router';
 
 import { AuthService } from '../../../core/services/auth.service';
+import { Icone } from '../../../shared/icone/icone';
+import { Logo } from '../../../shared/logo/logo';
 
 @Component({
   selector: 'app-reset-password',
   standalone: true,
-  imports: [CommonModule, FormsModule, RouterLink],
+  imports: [FormsModule, RouterLink, Icone, Logo],
   templateUrl: './reset-password.html',
-  styleUrl: '../auth-shared.css',
 })
 export class ResetPassword {
   token = '';

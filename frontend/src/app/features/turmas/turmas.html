@@ -1,0 +1,113 @@
+<div class="cab-pagina">
+  <div class="pilha" style="gap: 6px">
+    <h1>Minhas turmas</h1>
+    @if (!carregando() && turmas().length > 0) {
+      <p class="suave">{{ resumo }}</p>
+    }
+  </div>
+</div>
+
+<div class="duas-col">
+  <div class="col-principal">
+    @if (carregando()) {
+      <span class="sr-only" role="status">Carregando turmas…</span>
+      <ul class="lista" aria-hidden="true">
+        @for (largura of ['40%', '35%', '45%']; track $index) {
+          <li class="item">
+            <div class="item-principal">
+              <span class="esqueleto" [style.width]="largura" style="height: 20px"></span>
+              <span class="esqueleto" style="width: 50%; height: 14px"></span>
+            </div>
+          </li>
+        }
+      </ul>
+    } @else if (erroLista()) {
+      <div class="alerta alerta-erro" role="alert">
+        <app-icone nome="erro" />
+        <div class="alerta-corpo"><strong>{{ erroLista() }}</strong></div>
+      </div>
+    } @else if (turmas().length === 0) {
+      <div class="vazio">
+        <span class="vazio-ic"><app-icone nome="pessoas" tamanho="g" /></span>
+        <h2>Nenhuma turma ainda</h2>
+        <p>Cadastre a primeira turma ao lado. Depois é só adicionar os alunos e montar as provas.</p>
+      </div>
+    } @else {
+      <ul class="lista">
+        @for (turma of turmas(); track turma.id) {
+          <li class="item">
+            <div class="item-principal">
+              <a class="item-titulo" [routerLink]="['/app/turmas', turma.id]">{{ turma.nome }} — {{ turma.disciplina }}</a>
+              <div class="item-meta">
+                <span><app-icone nome="livro" tamanho="p" />{{ turma.disciplina }}</span>
+                @if (turma.escola) {
+                  <span>{{ turma.escola }}</span>
+                }
+                <span>{{ turma.ano_letivo }}</span>
+              </div>
+            </div>
+            <div class="item-lado">
+              <span class="item-meta">
+                <span><app-icone nome="pessoas" tamanho="p" />{{ turma.total_alunos }} {{ turma.total_alunos === 1 ? 'aluno' : 'alunos' }}</span>
+              </span>
+              <app-icone nome="setaDireita" />
+            </div>
+          </li>
+        }
+      </ul>
+    }
+  </div>
+
+  <form class="cartao form col-lado" aria-labelledby="t-nova" (ngSubmit)="criar(f)" #f="ngForm">
+    <h2 class="cartao-titulo" id="t-nova">Nova turma</h2>
+
+    @if (noLimite) {
+      <div class="alerta alerta-aviso" role="status">
+        <app-icone nome="cadeado" />
+        <div class="alerta-corpo">
+          <strong>O plano Free permite {{ limiteFree }} turma.</strong>
+          <span>Para cadastrar suas outras turmas, passe para o Professor Pro: turmas e provas ilimitadas.</span>
+          <a routerLink="/app/planos">Ver planos</a>
+        </div>
+      </div>
+    }
+
+    <div class="campo">
+      <label for="n-nome">Nome da turma</label>
+      <input class="entrada" id="n-nome" name="nome" type="text" [(ngModel)]="nova.nome" required maxlength="100"
+        placeholder="Ex.: 1º A" [disabled]="noLimite" />
+    </div>
+    <div class="campo">
+      <label for="n-disc">Disciplina</label>
+      <input class="entrada" id="n-disc" name="disciplina" type="text" [(ngModel)]="nova.disciplina" required
+        maxlength="100" placeholder="Ex.: Biologia" [disabled]="noLimite" />
+    </div>
+    <div class="campo">
+      <label for="n-escola">Escola <span class="opcional">(opcional)</span></label>
+      <input class="entrada" id="n-escola" name="escola" type="text" [(ngModel)]="nova.escola" maxlength="150"
+        placeholder="Ex.: E.E. Prof. João Cruz" [disabled]="noLimite" />
+    </div>
+    <div class="campo">
+      <label for="n-ano">Ano letivo</label>
+      <input class="entrada" id="n-ano" name="ano_letivo" type="number" inputmode="numeric" [(ngModel)]="nova.ano_letivo"
+        required min="2000" max="2100" [disabled]="noLimite" />
+    </div>
+
+    @if (erro()) {
+      <div class="alerta alerta-erro" role="alert">
+        <app-icone nome="erro" />
+        <div class="alerta-corpo">
+          <strong>{{ erro() }}</strong>
+          @if (bateuLimite()) {
+            <a routerLink="/app/planos">Ver planos</a>
+          }
+        </div>
+      </div>
+    }
+
+    <button class="btn btn-primario btn-bloco" type="submit" [disabled]="noLimite || f.invalid || salvando()">
+      <app-icone nome="mais" />
+      {{ salvando() ? 'Criando…' : 'Criar turma' }}
+    </button>
+  </form>
+</div>

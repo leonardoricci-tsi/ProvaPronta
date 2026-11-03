@@ -1,0 +1,193 @@
+@if (carregando()) {
+  <span class="sr-only" role="status">Carregando turma…</span>
+  <div class="pilha" aria-hidden="true">
+    <span class="esqueleto" style="width: 35%; height: 36px"></span>
+    <span class="esqueleto" style="height: 240px; border-radius: 16px"></span>
+  </div>
+} @else if (naoEncontrada()) {
+  <div class="vazio">
+    <span class="vazio-ic" style="background: var(--cor-perigo-suave); color: var(--cor-perigo)">
+      <app-icone nome="pessoas" tamanho="g" />
+    </span>
+    <h2>Turma não encontrada</h2>
+    <p>Ela pode ter sido apagada, ou o link está incompleto. Suas outras turmas continuam salvas.</p>
+    <a class="btn btn-primario" routerLink="/app/turmas">
+      <app-icone nome="setaEsquerda" />
+      Voltar para Minhas turmas
+    </a>
+  </div>
+} @else if (turma(); as t) {
+  <nav class="migalha" aria-label="Você está em">
+    <a routerLink="/app/turmas">Turmas</a>
+    <app-icone nome="setaDireita" tamanho="p" />
+    <span aria-current="page">{{ t.nome }} — {{ t.disciplina }}</span>
+  </nav>
+  <div class="cab-pagina">
+    <div class="pilha" style="gap: 6px">
+      <h1>{{ t.nome }} — {{ t.disciplina }}</h1>
+      <p class="suave">
+        {{ t.escola || 'Sem escola informada' }} · {{ t.ano_letivo }} · {{ t.total_alunos }}
+        {{ t.total_alunos === 1 ? 'aluno' : 'alunos' }}
+      </p>
+    </div>
+  </div>
+
+  @if (erro()) {
+    <div class="alerta alerta-erro" role="alert">
+      <app-icone nome="erro" />
+      <div class="alerta-corpo"><strong>{{ erro() }}</strong></div>
+    </div>
+  }
+
+  <div class="duas-col">
+    <div class="col-principal">
+      <section class="cartao" aria-labelledby="t-alunos">
+        <div class="cartao-cab">
+          <h2 class="cartao-titulo" id="t-alunos">Alunos</h2>
+          <span class="ajuda">{{ t.total_alunos }} {{ t.total_alunos === 1 ? 'aluno' : 'alunos' }}</span>
+        </div>
+        <form class="add-aluno" aria-label="Adicionar aluno" (ngSubmit)="adicionarAluno()" #fa="ngForm">
+          <div class="campo" style="width: 110px">
+            <label for="a-num">Nº chamada</label>
+            <input class="entrada" id="a-num" name="numero" type="number" inputmode="numeric" [(ngModel)]="novoAluno.numero"
+              required min="1" max="999" />
+          </div>
+          <div class="campo" style="flex: 1 1 220px">
+            <label for="a-nome">Nome do aluno</label>
+            <input class="entrada" id="a-nome" name="nome" type="text" placeholder="Nome completo" [(ngModel)]="novoAluno.nome"
+              required maxlength="150" />
+          </div>
+          <button class="btn btn-primario" type="submit" [disabled]="fa.invalid || adicionando()">
+            <app-icone nome="mais" />
+            Adicionar
+          </button>
+        </form>
+        @if (erroAluno()) {
+          <p class="msg-erro" role="alert"><app-icone nome="erro" tamanho="p" />{{ erroAluno() }}</p>
+        }
+        @if (t.alunos.length === 0) {
+          <p class="suave">Nenhum aluno ainda. Use o nº de chamada do diário.</p>
+        } @else {
+          <div class="tabela-caixa">
+            <table class="tabela">
+              <thead>
+                <tr>
+                  <th scope="col" class="num">Nº</th>
+                  <th scope="col">Nome</th>
+                  <th scope="col" class="acao"><span class="sr-only">Ações</span></th>
+                </tr>
+              </thead>
+              <tbody>
+                @for (aluno of t.alunos; track aluno.id) {
+                  <tr>
+                    <td class="num">{{ aluno.numero_chamada }}</td>
+                    <td>{{ aluno.nome }}</td>
+                    <td class="acao">
+                      <button class="btn btn-fantasma btn-icone btn-perigo-ic" type="button"
+                        [attr.aria-label]="'Remover ' + aluno.nome" (click)="removerAluno(aluno)">
+                        <app-icone nome="lixo" />
+                      </button>
+                    </td>
+                  </tr>
+                }
+              </tbody>
+            </table>
+          </div>
+        }
+      </section>
+    </div>
+
+    <aside class="col-lado">
+      <section class="cartao" aria-labelledby="t-dados">
+        <h2 class="cartao-titulo" id="t-dados">Dados da turma</h2>
+        @if (editando()) {
+          <form class="form" (ngSubmit)="salvar()" #f="ngForm">
+            <div class="campo">
+              <label for="e-nome">Nome</label>
+              <input class="entrada" id="e-nome" name="nome" [(ngModel)]="rascunho.nome" required maxlength="100" />
+            </div>
+            <div class="campo">
+              <label for="e-disc">Disciplina</label>
+              <input class="entrada" id="e-disc" name="disciplina" [(ngModel)]="rascunho.disciplina" required maxlength="100" />
+            </div>
+            <div class="campo">
+              <label for="e-escola">Escola <span class="opcional">(opcional)</span></label>
+              <input class="entrada" id="e-escola" name="escola" [(ngModel)]="rascunho.escola" maxlength="150" />
+            </div>
+            <div class="campo">
+              <label for="e-ano">Ano letivo</label>
+              <input class="entrada" id="e-ano" name="ano_letivo" type="number" inputmode="numeric"
+                [(ngModel)]="rascunho.ano_letivo" required min="2000" max="2100" />
+            </div>
+            <div class="linha" style="gap: 8px">
+              <button class="btn btn-primario" type="submit" [disabled]="f.invalid || salvando()">
+                {{ salvando() ? 'Salvando…' : 'Salvar' }}
+              </button>
+              <button class="btn btn-fantasma" type="button" (click)="editando.set(false)">Cancelar</button>
+            </div>
+          </form>
+        } @else {
+          <dl class="dados">
+            <dt>Nome</dt><dd>{{ t.nome }}</dd>
+            <dt>Disciplina</dt><dd>{{ t.disciplina }}</dd>
+            <dt>Escola</dt><dd>{{ t.escola || '—' }}</dd>
+            <dt>Ano</dt><dd>{{ t.ano_letivo }}</dd>
+            <dt>Alunos</dt><dd>{{ t.total_alunos }}</dd>
+          </dl>
+          <div class="linha" style="gap: 8px">
+            <button class="btn btn-secundario" type="button" (click)="comecarEdicao()">
+              <app-icone nome="editar" />
+              Editar
+            </button>
+            @if (confirmandoRemocao()) {
+              <button class="btn btn-perigo confirmar" type="button" (click)="remover()">
+                <app-icone nome="lixo" />
+                Clique de novo para apagar
+              </button>
+              <button class="btn btn-fantasma" type="button" (click)="cancelarRemocao()">Cancelar</button>
+            } @else {
+              <button class="btn btn-perigo" type="button" (click)="remover()">
+                <app-icone nome="lixo" />
+                Apagar
+              </button>
+            }
+          </div>
+        }
+      </section>
+
+      <section class="cartao" aria-labelledby="t-provas">
+        <div class="cartao-cab">
+          <h2 class="cartao-titulo" id="t-provas">Provas da turma</h2>
+          <a class="btn btn-secundario btn-icone" routerLink="/app/provas/nova" [queryParams]="{ turma: t.id }"
+            [attr.aria-label]="'Nova prova para ' + t.nome">
+            <app-icone nome="mais" />
+          </a>
+        </div>
+        @if (provas().length === 0) {
+          <p class="suave">Nenhuma prova para esta turma.</p>
+        } @else {
+          <ul class="lista" style="gap: 8px">
+            @for (prova of provas(); track prova.id) {
+              <li class="item" style="padding: 12px 16px">
+                <div class="item-principal" style="flex-basis: 160px">
+                  <a class="item-titulo" [routerLink]="['/app/provas', prova.id]" style="font-size: 1rem">{{ prova.titulo }}</a>
+                  <div class="item-meta">
+                    <span>{{ prova.total_questoes }} {{ prova.total_questoes === 1 ? 'questão' : 'questões' }}</span>
+                  </div>
+                </div>
+                <span class="selo" [class.selo-pronta]="prova.status === 'pronta'" [class.selo-rascunho]="prova.status === 'rascunho'">
+                  {{ prova.status === 'pronta' ? 'Pronta' : 'Rascunho' }}
+                </span>
+              </li>
+            }
+          </ul>
+        }
+      </section>
+    </aside>
+  </div>
+} @else {
+  <div class="alerta alerta-erro" role="alert">
+    <app-icone nome="erro" />
+    <div class="alerta-corpo"><strong>{{ erro() }}</strong></div>
+  </div>
+}

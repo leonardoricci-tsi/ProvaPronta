@@ -2,11 +2,22 @@
 <html lang="pt-br">
 <head>
   <meta charset="utf-8">
-  <title>Catálogo de Filmes — Tom Hanks</title>
+  <title>ProvaPronta — provas prontas para professores</title>
+  <meta name="description" content="Monte provas de múltipla escolha, organize por turma, anexe a apostila em PDF e gere a versão B embaralhada.">
   <base href="/">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <link rel="icon" type="image/svg+xml" href="logo-icon.svg">
-  <link rel="icon" type="image/x-icon" href="favicon.ico">
+  <meta name="theme-color" content="#2747B8">
+  <link rel="icon" type="image/svg+xml" href="favicon.svg">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Atkinson+Hyperlegible:ital,wght@0,400;0,700;1,400&family=Bricolage+Grotesque:opsz,wght@12..96,600;12..96,700;12..96,800&display=swap">
+  <script>
+    // Aplica o tema salvo antes do Angular subir, pra não piscar claro→escuro.
+    try {
+      var tema = localStorage.getItem('tema');
+      if (tema === 'claro' || tema === 'escuro') document.documentElement.setAttribute('data-tema', tema);
+    } catch (e) {}
+  </script>
 </head>
 <body>
   <app-root></app-root>

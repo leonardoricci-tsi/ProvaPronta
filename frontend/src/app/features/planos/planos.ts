@@ -1,4 +1,3 @@
-import { CommonModule } from '@angular/common';
 import { HttpErrorResponse } from '@angular/common/http';
 import { Component, OnDestroy, OnInit, inject, signal } from '@angular/core';
 import { ActivatedRoute } from '@angular/router';
@@ -7,6 +6,7 @@ import { switchMap } from 'rxjs';
 import { AuthService } from '../../core/services/auth.service';
 import { PremiumService } from '../../core/services/premium.service';
 import { PlanoPago } from '../../models/premium.model';
+import { Icone } from '../../shared/icone/icone';
 
 // Quanto tempo esperar o webhook depois de voltar do checkout. Em teste ele
 // chega em 1-3 s; passou disso, é melhor avisar do que girar pra sempre.
@@ -15,47 +15,49 @@ const TENTATIVAS = 15;
 
 type Retorno = 'nenhum' | 'confirmando' | 'confirmado' | 'demorou' | 'cancelado';
 
-interface Plano {
+export interface Plano {
   papel: string;
-  icone: string;
   nome: string;
   preco: string;
   periodo: string;
-  descricao: string;
-  beneficios: string[];
+  para: string;
+  itens: string[];
+  // Texto do botão na landing (logado, o botão depende do plano atual).
+  chamada: string;
   destaque?: boolean;
 }
 
 // Mesmos planos da landing page. Cada plano é um papel do RBAC: Free
-// (`professor`) é o gratuito (todo cadastro nasce nele), Pro e Escola são vendidos.
+// (`professor`) é o gratuito (todo cadastro nasce nele), Pro e Escola são
+// vendidos. Os limites do Free espelham app/services/planos.py.
 export const PLANOS: Plano[] = [
   {
     papel: 'professor',
-    icone: '📝',
     nome: 'Free',
-    preco: 'Grátis',
+    preco: 'R$ 0',
     periodo: '',
-    descricao: 'Para experimentar com uma turma.',
-    beneficios: ['1 turma (até 40 alunos)', '2 provas por mês', 'Questões de múltipla escolha', '3 PDFs de material'],
+    para: 'Para experimentar com uma turma.',
+    itens: ['1 turma', '2 provas por mês', 'PDF da apostila'],
+    chamada: 'Criar conta grátis',
   },
   {
     papel: 'professor_pro',
-    icone: '🎓',
-    nome: 'Pro',
+    nome: 'Professor Pro',
     preco: 'R$ 29,90',
     periodo: '/mês',
-    descricao: 'Para o professor com várias turmas.',
-    beneficios: ['Turmas e provas ilimitadas', 'Versões A/B embaralhadas', 'Banco de questões reaproveitável', 'Exportar notas em planilha'],
+    para: 'Para quem dá aula em várias turmas.',
+    itens: ['Turmas ilimitadas', 'Provas ilimitadas', 'Versão B embaralhada', 'PDF da apostila'],
+    chamada: 'Começar com o Pro',
     destaque: true,
   },
   {
     papel: 'coordenador',
-    icone: '🏫',
-    nome: 'Escola',
+    nome: 'Escola / Coordenador',
     preco: 'R$ 199,90',
     periodo: '/mês',
-    descricao: 'Para a coordenação pedagógica.',
-    beneficios: ['Tudo do Pro para até 15 professores', 'Coordenador revisa e aprova a prova', 'Relatório por turma e por assunto'],
+    para: 'Para a coordenação da escola.',
+    itens: ['Tudo do Professor Pro', 'Pensado para a coordenação pedagógica'],
+    chamada: 'Assinar para a escola',
   },
 ];
 
@@ -64,9 +66,8 @@ const NIVEL: Record<string, number> = { professor: 1, professor_pro: 2, coordena
 @Component({
   selector: 'app-planos',
   standalone: true,
-  imports: [CommonModule],
+  imports: [Icone],
   templateUrl: './planos.html',
-  styleUrl: './planos.css',
 })
 export class Planos implements OnInit, OnDestroy {
   private readonly route = inject(ActivatedRoute);
@@ -110,6 +111,19 @@ export class Planos implements OnInit, OnDestroy {
 
   get nomePlanoAtual(): string {
     return PLANOS.find((p) => p.papel === this.authService.usuario()?.role)?.nome ?? 'Admin';
+  }
+
+  get fraseAtual(): string {
+    switch (this.authService.usuario()?.role) {
+      case 'professor':
+        return 'Precisa de mais turmas ou da versão B? O Professor Pro libera tudo por R$ 29,90/mês.';
+      case 'professor_pro':
+        return 'Turmas e provas ilimitadas e versão B estão liberadas.';
+      case 'coordenador':
+        return 'Sua escola tem o plano da coordenação.';
+      default:
+        return 'Admins têm acesso a tudo.';
+    }
   }
 
   private esperarConfirmacao(restantes: number): void {

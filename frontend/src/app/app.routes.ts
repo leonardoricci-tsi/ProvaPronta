@@ -2,7 +2,7 @@ import { Routes } from '@angular/router';
 
 import { authGuard } from './core/guards/auth.guard';
 import { guestGuard } from './core/guards/guest.guard';
-import { adminGuard, roleGuard } from './core/guards/role.guard';
+import { adminGuard } from './core/guards/role.guard';
 import { AppShell } from './layout/app-shell/app-shell';
 
 export const routes: Routes = [
@@ -32,9 +32,35 @@ export const routes: Routes = [
     component: AppShell,
     canActivate: [authGuard],
     children: [
+      { path: '', pathMatch: 'full', redirectTo: 'provas' },
       {
-        path: '',
-        loadComponent: () => import('./features/catalog/catalog').then((m) => m.Catalog),
+        path: 'turmas',
+        loadComponent: () => import('./features/turmas/turmas').then((m) => m.Turmas),
+      },
+      {
+        path: 'turmas/:id',
+        loadComponent: () =>
+          import('./features/turmas/turma-detalhe/turma-detalhe').then((m) => m.TurmaDetalhe),
+      },
+      {
+        path: 'provas',
+        loadComponent: () => import('./features/provas/provas').then((m) => m.Provas),
+      },
+      {
+        // Antes de 'provas/:id', senão "nova" vira um id.
+        path: 'provas/nova',
+        loadComponent: () =>
+          import('./features/provas/prova-form/prova-form').then((m) => m.ProvaForm),
+      },
+      {
+        path: 'provas/:id/editar',
+        loadComponent: () =>
+          import('./features/provas/prova-form/prova-form').then((m) => m.ProvaForm),
+      },
+      {
+        path: 'provas/:id',
+        loadComponent: () =>
+          import('./features/provas/prova-detalhe/prova-detalhe').then((m) => m.ProvaDetalhe),
       },
       {
         // Sem id = o próprio perfil (o componente usa o id do JWT).
@@ -50,19 +76,6 @@ export const routes: Routes = [
         // o navegador depois do checkout (?checkout=sucesso|cancelado).
         path: 'planos',
         loadComponent: () => import('./features/planos/planos').then((m) => m.Planos),
-      },
-      {
-        path: 'favoritos',
-        loadComponent: () => import('./features/favorites/favorites').then((m) => m.Favorites),
-      },
-      {
-        path: 'comentarios',
-        loadComponent: () => import('./features/comments/comments').then((m) => m.Comments),
-      },
-      {
-        path: 'quiz',
-        canActivate: [roleGuard('stalker_do_tomhanks')],
-        loadComponent: () => import('./features/quiz/quiz').then((m) => m.Quiz),
       },
       {
         path: 'admin',

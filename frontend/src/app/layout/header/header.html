@@ -1,45 +1,90 @@
-<header class="header">
-  <a routerLink="/app" class="logo">
-    <img src="/logo-icon.svg" alt="" class="logo-icone" />
-    Tom Hanks
-  </a>
-
-  <nav class="nav">
-    <a routerLink="/app" routerLinkActive="ativo" [routerLinkActiveOptions]="{ exact: true }">
-      Catálogo
-    </a>
-    @if (authService.temPapelMinimo('nerd')) {
-      <a routerLink="/app/favoritos" routerLinkActive="ativo">Favoritos</a>
-      <a routerLink="/app/comentarios" routerLinkActive="ativo">Comentários</a>
-    }
-    @if (authService.temPapelMinimo('stalker_do_tomhanks')) {
-      <a routerLink="/app/quiz" routerLinkActive="ativo">Quiz</a>
-    }
-    @if (authService.isAdmin()) {
-      <a routerLink="/app/admin" routerLinkActive="ativo">Admin</a>
-    }
-    <a routerLink="/app/planos" routerLinkActive="ativo" class="link-premium">★ Planos</a>
-  </nav>
-
-  <div class="perfil">
-    <button class="avatar" [class.premium]="premiumService.status()?.premium" (click)="toggleMenu()" [attr.aria-label]="'Menu de ' + (authService.usuario()?.nome ?? 'usuário')">
-      @if (profileService.minhaFotoUrl(); as foto) {
-        <img [src]="foto" alt="" />
-      } @else {
-        {{ iniciais }}
-      }
+<header class="topo">
+  <div class="topo-int">
+    <button
+      class="btn btn-fantasma btn-icone btn-menu"
+      type="button"
+      [attr.aria-label]="gavetaAberta() ? 'Fechar menu' : 'Abrir menu'"
+      [attr.aria-expanded]="gavetaAberta()"
+      (click)="alternarGaveta()"
+    >
+      <app-icone [nome]="gavetaAberta() ? 'fechar' : 'menu'" />
     </button>
 
-    @if (menuAberto()) {
-      <div class="menu-perfil">
-        <div class="linha-nome">
-          <p class="nome">{{ authService.usuario()?.nome }}</p>
-          <span class="tag-role" [class.admin]="authService.isAdmin()">{{ nomePapel }}</span>
+    <app-logo destino="/app/provas" rotulo="Minhas provas" />
+
+    <nav class="nav" aria-label="Principal">
+      <a routerLink="/app/provas" routerLinkActive #rlaProvas="routerLinkActive" [attr.aria-current]="rlaProvas.isActive ? 'page' : null">Provas</a>
+      <a routerLink="/app/turmas" routerLinkActive #rlaTurmas="routerLinkActive" [attr.aria-current]="rlaTurmas.isActive ? 'page' : null">Turmas</a>
+      <a routerLink="/app/planos" routerLinkActive #rlaPlanos="routerLinkActive" [attr.aria-current]="rlaPlanos.isActive ? 'page' : null">Planos</a>
+      @if (authService.isAdmin()) {
+        <a routerLink="/app/admin" routerLinkActive #rlaAdmin="routerLinkActive" [attr.aria-current]="rlaAdmin.isActive ? 'page' : null">Admin</a>
+      }
+    </nav>
+
+    <div class="topo-dir">
+      <button
+        class="avatar-btn"
+        type="button"
+        aria-haspopup="true"
+        [attr.aria-expanded]="menuAberto()"
+        [attr.aria-label]="'Conta de ' + (authService.usuario()?.nome ?? 'usuário')"
+        (click)="alternarMenu()"
+      >
+        <span class="avatar" aria-hidden="true">
+          @if (profileService.minhaFotoUrl(); as foto) {
+            <img [src]="foto" alt="" />
+          } @else {
+            {{ iniciais }}
+          }
+        </span>
+        <span class="avatar-nome">{{ primeiroNome }}</span>
+        <app-icone nome="setaBaixo" tamanho="p" />
+      </button>
+
+      @if (menuAberto()) {
+        <div class="menu-suspenso">
+          <div class="menu-cab">
+            <strong>{{ authService.usuario()?.nome }}</strong>
+            <span class="ajuda">{{ authService.usuario()?.email }}</span>
+            <span [class]="selo.classe">{{ selo.texto }}</span>
+          </div>
+          <a class="menu-item" routerLink="/app/perfil">
+            <app-icone nome="pessoa" />
+            Meu perfil
+          </a>
+          <button class="menu-item" type="button" (click)="temaService.alternar()">
+            <app-icone [nome]="temaService.tema() === 'escuro' ? 'sol' : 'lua'" />
+            {{ temaService.tema() === 'escuro' ? 'Modo claro' : 'Modo escuro' }}
+          </button>
+          <button class="menu-item" type="button" (click)="sair()">
+            <app-icone nome="sair" />
+            Sair
+          </button>
         </div>
-        <p class="email">{{ authService.usuario()?.email }}</p>
-        <a class="btn-perfil" routerLink="/app/perfil" (click)="menuAberto.set(false)">Meu perfil</a>
-        <button class="btn-sair" (click)="sair()">Sair</button>
-      </div>
-    }
+      }
+    </div>
   </div>
+
+  @if (gavetaAberta()) {
+    <nav class="gaveta" aria-label="Menu">
+      <a routerLink="/app/provas" routerLinkActive #gProvas="routerLinkActive" [attr.aria-current]="gProvas.isActive ? 'page' : null">
+        <app-icone nome="checklist" />
+        Provas
+      </a>
+      <a routerLink="/app/turmas" routerLinkActive #gTurmas="routerLinkActive" [attr.aria-current]="gTurmas.isActive ? 'page' : null">
+        <app-icone nome="pessoas" />
+        Turmas
+      </a>
+      <a routerLink="/app/planos" routerLinkActive #gPlanos="routerLinkActive" [attr.aria-current]="gPlanos.isActive ? 'page' : null">
+        <app-icone nome="cartao" />
+        Planos
+      </a>
+      @if (authService.isAdmin()) {
+        <a routerLink="/app/admin" routerLinkActive #gAdmin="routerLinkActive" [attr.aria-current]="gAdmin.isActive ? 'page' : null">
+          <app-icone nome="escudo" />
+          Admin
+        </a>
+      }
+    </nav>
+  }
 </header>

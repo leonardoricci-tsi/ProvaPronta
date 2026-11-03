@@ -1,0 +1,201 @@
+@if (carregando()) {
+  <span class="sr-only" role="status">Carregando prova…</span>
+  <div class="pilha" aria-hidden="true">
+    <span class="esqueleto" style="width: 40%; height: 36px"></span>
+    <span class="esqueleto" style="width: 30%; height: 16px"></span>
+    <span class="esqueleto" style="height: 180px; border-radius: 16px"></span>
+  </div>
+} @else if (naoEncontrada()) {
+  <div class="vazio">
+    <span class="vazio-ic" style="background: var(--cor-perigo-suave); color: var(--cor-perigo)">
+      <app-icone nome="pdfX" tamanho="g" />
+    </span>
+    <h2>Prova não encontrada</h2>
+    <p>Ela pode ter sido apagada, ou o link está incompleto. Suas outras provas continuam salvas.</p>
+    <a class="btn btn-primario" routerLink="/app/provas">
+      <app-icone nome="setaEsquerda" />
+      Voltar para Minhas provas
+    </a>
+  </div>
+} @else if (prova(); as p) {
+  <nav class="migalha" aria-label="Você está em">
+    <a routerLink="/app/provas">Provas</a>
+    <app-icone nome="setaDireita" tamanho="p" />
+    <span aria-current="page">{{ p.titulo }}</span>
+  </nav>
+
+  <div class="cab-pagina" style="align-items: flex-start">
+    <div class="pilha" style="gap: 10px">
+      <div class="linha">
+        <h1>{{ p.titulo }}</h1>
+        <span class="selo" [class.selo-pronta]="p.status === 'pronta'" [class.selo-rascunho]="p.status === 'rascunho'">
+          {{ p.status === 'pronta' ? 'Pronta' : 'Rascunho' }}
+        </span>
+      </div>
+      <div class="item-meta" style="font-size: 1rem">
+        <span><app-icone nome="pessoas" tamanho="p" /><a [routerLink]="['/app/turmas', p.turma.id]">{{ p.turma.nome }} — {{ p.turma.disciplina }}</a></span>
+        @if (p.data_aplicacao) {
+          <span><app-icone nome="calendario" tamanho="p" />Aplicação {{ p.data_aplicacao | date: 'dd/MM/yyyy' : 'UTC' }}</span>
+        }
+        <span>{{ p.total_questoes }} {{ p.total_questoes === 1 ? 'questão' : 'questões' }}</span>
+      </div>
+    </div>
+    <div class="linha" style="gap: 8px">
+      <a class="btn btn-secundario" [routerLink]="['/app/provas', p.id, 'editar']">
+        <app-icone nome="editar" />
+        Editar
+      </a>
+      <button class="btn btn-secundario" type="button" (click)="gerarVersaoB()"
+        [disabled]="gerandoVersaoB() || p.total_questoes === 0"
+        [attr.title]="p.total_questoes === 0 ? 'Adicione questões antes de gerar a versão B' : null">
+        <app-icone nome="embaralhar" />
+        {{ gerandoVersaoB() ? 'Gerando…' : 'Gerar versão B' }}
+        @if (!ehPro) {
+          <span class="selo selo-pro">Pro</span>
+        }
+      </button>
+      @if (confirmandoRemocao()) {
+        <button class="btn btn-perigo confirmar" type="button" (click)="remover()">
+          <app-icone nome="lixo" />
+          Clique de novo para apagar
+        </button>
+        <button class="btn btn-fantasma" type="button" (click)="cancelarRemocao()">Cancelar</button>
+      } @else {
+        <button class="btn btn-perigo" type="button" (click)="remover()">
+          <app-icone nome="lixo" />
+          Apagar
+        </button>
+      }
+    </div>
+  </div>
+
+  @if (versaoBSoPro()) {
+    <div class="alerta alerta-aviso" role="alert">
+      <app-icone nome="cadeado" />
+      <div class="alerta-corpo">
+        <strong>A versão B é um recurso do Professor Pro.</strong>
+        <span>Com o Pro você gera uma prova com questões e alternativas embaralhadas — e o gabarito acompanha a nova ordem.</span>
+        <div class="linha">
+          <a class="btn btn-primario" routerLink="/app/planos">Conhecer o Pro — R$ 29,90/mês</a>
+          <button class="btn btn-fantasma" type="button" (click)="versaoBSoPro.set(false)">Agora não</button>
+        </div>
+      </div>
+    </div>
+  }
+  @if (versaoBGerada(); as nova) {
+    <div class="alerta alerta-sucesso" role="status">
+      <app-icone nome="check" />
+      <div class="alerta-corpo">
+        <strong>Versão B gerada.</strong>
+        <span>“{{ nova.titulo }}” foi salva como rascunho na mesma turma.</span>
+        <a [routerLink]="['/app/provas', nova.id]">Abrir a versão B</a>
+      </div>
+    </div>
+  }
+  @if (erroVersaoB() || erro()) {
+    <div class="alerta alerta-erro" role="alert">
+      <app-icone nome="erro" />
+      <div class="alerta-corpo"><strong>{{ erroVersaoB() || erro() }}</strong></div>
+    </div>
+  }
+
+  <div class="duas-col">
+    <section class="col-principal" aria-labelledby="t-questoes">
+      <div class="cartao-cab">
+        <h2 id="t-questoes" style="font-size: 1.375rem">Questões</h2>
+        @if (p.questoes.length > 0) {
+          <span class="ajuda"><span class="selo selo-gabarito">Gabarito</span> = alternativa correta</span>
+        }
+      </div>
+      @for (q of p.questoes; track q.id) {
+        <article class="cartao questao">
+          <div class="questao-cab">
+            <span class="questao-num">{{ q.ordem }}.</span>
+            <p class="questao-enunciado">{{ q.enunciado }}</p>
+            @if (q.assunto) {
+              <span class="assunto">{{ q.assunto }}</span>
+            }
+          </div>
+          <ol class="alts">
+            @for (alt of q.alternativas; track $index; let j = $index) {
+              <li [class.gabarito]="j === q.resposta_correta">
+                <span class="letra" aria-hidden="true">{{ letras[j] }}</span>
+                <span><span class="sr-only">{{ letras[j] }}) </span>{{ alt }}</span>
+                @if (j === q.resposta_correta) {
+                  <span class="selo selo-gabarito">Gabarito</span>
+                }
+              </li>
+            }
+          </ol>
+        </article>
+      } @empty {
+        <div class="vazio">
+          <span class="vazio-ic"><app-icone nome="checklist" tamanho="g" /></span>
+          <h2>Nenhuma questão ainda</h2>
+          <p>Adicione o enunciado, as alternativas e marque a correta.</p>
+          <a class="btn btn-primario" [routerLink]="['/app/provas', p.id, 'editar']">
+            <app-icone nome="mais" />
+            Adicionar questões
+          </a>
+        </div>
+      }
+    </section>
+
+    <aside class="col-lado">
+      <section class="cartao" aria-labelledby="t-pdf">
+        <h2 class="cartao-titulo" id="t-pdf">Material de apoio (PDF)</h2>
+        @if (p.material_nome) {
+          <div class="pdf-linha">
+            <span class="pdf-ic"><app-icone nome="pdf" /></span>
+            <div class="pilha" style="gap: 2px; min-width: 0">
+              <strong style="overflow-wrap: anywhere">{{ p.material_nome }}</strong>
+              <span class="ajuda">Guardado com segurança · link temporário</span>
+            </div>
+          </div>
+          <div class="linha" style="gap: 8px">
+            <button class="btn btn-secundario" type="button" (click)="abrirPdf()">
+              <app-icone nome="abrir" />
+              Abrir
+            </button>
+            <label class="btn btn-secundario" [class.ocupado]="enviandoPdf()">
+              <app-icone nome="trocar" />
+              {{ enviandoPdf() ? 'Enviando…' : 'Trocar' }}
+              <input class="sr-only" type="file" accept="application/pdf,.pdf" [disabled]="enviandoPdf()" (change)="escolherPdf($event)" />
+            </label>
+            <button class="btn btn-perigo" type="button" (click)="removerPdf()">Remover</button>
+          </div>
+        } @else {
+          <p class="suave">Nenhum PDF anexado. Anexe a apostila para abrir na aula ou mandar para a turma.</p>
+          <label class="btn btn-secundario" style="align-self: flex-start" [class.ocupado]="enviandoPdf()">
+            <app-icone nome="enviar" />
+            {{ enviandoPdf() ? 'Enviando…' : 'Anexar PDF' }}
+            <input class="sr-only" type="file" accept="application/pdf,.pdf" [disabled]="enviandoPdf()" (change)="escolherPdf($event)" />
+          </label>
+          <p class="ajuda">Somente .pdf, até 10 MB.</p>
+        }
+        @if (erroPdf()) {
+          <p class="msg-erro" role="alert"><app-icone nome="erro" tamanho="p" />{{ erroPdf() }}</p>
+        }
+      </section>
+
+      <section class="cartao" aria-labelledby="t-info">
+        <h2 class="cartao-titulo" id="t-info">Sobre a prova</h2>
+        <dl class="dados">
+          <dt>Turma</dt>
+          <dd><a [routerLink]="['/app/turmas', p.turma.id]">{{ p.turma.nome }} — {{ p.turma.disciplina }}</a></dd>
+          <dt>Aplicação</dt>
+          <dd>{{ p.data_aplicacao ? (p.data_aplicacao | date: 'dd/MM/yyyy' : 'UTC') : 'Sem data' }}</dd>
+          <dt>Questões</dt>
+          <dd>{{ p.total_questoes }}</dd>
+          <dt>Atualizada</dt>
+          <dd>{{ p.atualizado_em | date: 'dd/MM/yyyy' }}</dd>
+        </dl>
+      </section>
+    </aside>
+  </div>
+} @else {
+  <div class="alerta alerta-erro" role="alert">
+    <app-icone nome="erro" />
+    <div class="alerta-corpo"><strong>{{ erro() }}</strong></div>
+  </div>
+}

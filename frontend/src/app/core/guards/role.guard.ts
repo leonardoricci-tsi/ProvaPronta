@@ -14,7 +14,7 @@ export function roleGuard(papelMinimo: string): CanActivateFn {
     if (authService.temPapelMinimo(papelMinimo)) {
       return true;
     }
-    return router.parseUrl('/app');
+    return router.parseUrl('/app/provas');
   };
 }
 
@@ -25,5 +25,5 @@ export const adminGuard: CanActivateFn = () => {
   if (authService.isAdmin()) {
     return true;
   }
-  return router.parseUrl('/app');
+  return router.parseUrl('/app/provas');
 };

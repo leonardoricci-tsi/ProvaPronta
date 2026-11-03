@@ -1,13 +1,14 @@
-import { CommonModule } from '@angular/common';
 import { Component, DestroyRef, OnInit, inject, signal } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { HttpErrorResponse } from '@angular/common/http';
 import { FormsModule } from '@angular/forms';
-import { ActivatedRoute } from '@angular/router';
+import { ActivatedRoute, RouterLink } from '@angular/router';
 
+import { SELO_PAPEL } from '../../core/papeis';
 import { AuthService } from '../../core/services/auth.service';
 import { ProfileService } from '../../core/services/profile.service';
 import { Profile as Perfil } from '../../models/profile.model';
+import { Icone } from '../../shared/icone/icone';
 import { PLANOS } from '../planos/planos';
 
 // Espelham os limites do backend (app/services/imagem.py) só pra avisar
@@ -20,9 +21,8 @@ const BIO_MAXIMO = 280;
 @Component({
   selector: 'app-profile',
   standalone: true,
-  imports: [CommonModule, FormsModule],
+  imports: [FormsModule, RouterLink, Icone],
   templateUrl: './profile.html',
-  styleUrl: './profile.css',
 })
 export class Profile implements OnInit {
   private readonly route = inject(ActivatedRoute);
@@ -35,16 +35,16 @@ export class Profile implements OnInit {
   carregando = signal(true);
   erro = signal('');
 
-  editandoBio = signal(false);
   bioRascunho = signal('');
   salvandoBio = signal(false);
+  bioSalva = signal(false);
 
   enviandoFoto = signal(false);
   erroFoto = signal('');
 
   constructor(
     private readonly profileService: ProfileService,
-    private readonly authService: AuthService,
+    readonly authService: AuthService,
   ) {}
 
   ngOnInit(): void {
@@ -59,11 +59,12 @@ export class Profile implements OnInit {
   private carregar(usuarioId: number): void {
     this.carregando.set(true);
     this.erro.set('');
-    this.editandoBio.set(false);
+    this.bioSalva.set(false);
     this.erroFoto.set('');
     this.profileService.ver(usuarioId).subscribe({
       next: (perfil) => {
         this.perfil.set(perfil);
+        this.bioRascunho.set(perfil.bio ?? '');
         this.carregando.set(false);
       },
       error: (erro: HttpErrorResponse) => {
@@ -77,24 +78,26 @@ export class Profile implements OnInit {
   }
 
   get iniciais(): string {
-    return (this.perfil()?.nome ?? '?').trim().charAt(0).toUpperCase();
+    const partes = (this.perfil()?.nome ?? '?').trim().split(/\s+/);
+    const ultima = partes.length > 1 ? partes[partes.length - 1].charAt(0) : '';
+    return (partes[0].charAt(0) + ultima).toUpperCase();
   }
 
-  nomePlano(papel: string): string {
-    return PLANOS.find((p) => p.papel === papel)?.nome ?? papel;
+  get selo(): { texto: string; classe: string } {
+    // O próprio perfil usa o papel do JWT (pega o Free também); o de outra
+    // pessoa só sabe do plano pago.
+    const p = this.perfil();
+    const papel = p?.eh_meu ? this.authService.usuario()?.role : p?.plano;
+    return SELO_PAPEL[papel ?? 'professor'] ?? SELO_PAPEL['professor'];
   }
 
-  posterUrl(posterPath: string | null): string | null {
-    return posterPath ? `https://image.tmdb.org/t/p/w342${posterPath}` : null;
+  get nomePlano(): string {
+    return PLANOS.find((p) => p.papel === this.authService.usuario()?.role)?.nome ?? 'Admin';
   }
 
-  comecarEdicaoBio(): void {
+  descartarBio(): void {
     this.bioRascunho.set(this.perfil()?.bio ?? '');
-    this.editandoBio.set(true);
-  }
-
-  cancelarEdicaoBio(): void {
-    this.editandoBio.set(false);
+    this.bioSalva.set(false);
   }
 
   salvarBio(): void {
@@ -102,11 +105,13 @@ export class Profile implements OnInit {
     if (!perfil) return;
 
     this.salvandoBio.set(true);
+    this.bioSalva.set(false);
     this.profileService.editarBio(perfil.usuario_id, this.bioRascunho().trim()).subscribe({
       next: (atualizado) => {
         this.perfil.set(atualizado);
-        this.editandoBio.set(false);
+        this.bioRascunho.set(atualizado.bio ?? '');
         this.salvandoBio.set(false);
+        this.bioSalva.set(true);
       },
       error: (erro: HttpErrorResponse) => {
         this.erro.set(this.mensagemDoBackend(erro, 'Não foi possível salvar a bio.'));

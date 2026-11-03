@@ -1,125 +1,239 @@
-<header class="topo">
-  <a routerLink="/" class="logo">
-    <img src="/logo-icon.svg" alt="" class="logo-icone" />
-    Tom Hanks
-  </a>
-
-  <nav class="acoes-topo">
-    <a routerLink="/login" class="btn-entrar">Entrar</a>
-    <a routerLink="/registro" class="btn-cadastrar">Criar conta</a>
-  </nav>
+<header class="lp-topo">
+  <div class="container">
+    <app-logo />
+    <nav class="lp-nav" aria-label="Seções">
+      <a routerLink="/" fragment="como-funciona">Como funciona</a>
+      <a routerLink="/" fragment="recursos">Recursos</a>
+      <a routerLink="/" fragment="planos">Planos</a>
+      <a routerLink="/" fragment="faq">Dúvidas</a>
+    </nav>
+    <div class="lp-acoes">
+      <button
+        class="btn btn-fantasma btn-icone"
+        type="button"
+        [attr.aria-label]="temaService.tema() === 'escuro' ? 'Usar modo claro' : 'Usar modo escuro'"
+        (click)="temaService.alternar()"
+      >
+        <app-icone [nome]="temaService.tema() === 'escuro' ? 'sol' : 'lua'" />
+      </button>
+      <a class="btn btn-fantasma lp-entrar" routerLink="/login">Entrar</a>
+      <a class="btn btn-primario" routerLink="/registro">Criar conta grátis</a>
+    </div>
+  </div>
 </header>
 
-<section class="hero">
-  <div class="hero-conteudo">
-    <img src="/logo.svg" alt="Tom Hanks — catálogo de filmes" class="hero-logo" />
-    <span class="selo">Catálogo dedicado</span>
-    <h1>Todo o cinema de <span class="destaque">Tom Hanks</span>, em um só lugar</h1>
-    <p class="subtitulo">
-      Do clássico ao contemporâneo: descubra, favorite e comente os filmes do ator mais
-      querido de Hollywood. Crie sua conta grátis e monte sua coleção pessoal.
-    </p>
-    <div class="hero-botoes">
-      <a routerLink="/registro" class="btn-primario">Criar conta grátis</a>
-      <a routerLink="/login" class="btn-secundario">Já tenho conta</a>
-    </div>
-  </div>
-</section>
-
-<section class="recursos">
-  <div class="recurso">
-    <span class="icone">🎞️</span>
-    <h3>Catálogo completo</h3>
-    <p>Explore a filmografia com sinopse, pôster e data de lançamento de cada filme.</p>
-  </div>
-  <div class="recurso">
-    <span class="icone">⭐</span>
-    <h3>Favoritos</h3>
-    <p>Marque os filmes que você mais gosta e monte sua lista pessoal em segundos.</p>
-  </div>
-  <div class="recurso">
-    <span class="icone">💬</span>
-    <h3>Comentários</h3>
-    <p>Compartilhe sua opinião sobre cada filme e veja o que outros fãs acharam.</p>
-  </div>
-</section>
-
-<section class="planos">
-  <h2>Escolha o seu nível de fã</h2>
-  <p class="planos-subtitulo">Quanto maior a obsessão, maior o plano.</p>
-
-  <div class="grade-planos">
-    <div class="plano-card">
-      <span class="plano-icone">🍿</span>
-      <h3>Cinéfilo</h3>
-      <p class="plano-preco">R$ 9,90<span class="plano-periodo">/mês</span></p>
-      <p class="plano-descricao">Para quem curte um clássico com calma, sem compromisso.</p>
-      <ul class="plano-lista">
-        <li>Acesso ao catálogo completo</li>
-        <li>Sinopse e ficha técnica de cada filme</li>
-        <li>Perfil pessoal</li>
-      </ul>
-      <a routerLink="/registro" class="btn-secundario btn-plano">Escolher plano</a>
-    </div>
-
-    <div class="plano-card plano-destaque">
-      <span class="plano-selo">Mais popular</span>
-      <span class="plano-icone">🤓</span>
-      <h3>Nerd</h3>
-      <p class="plano-preco">R$ 19,90<span class="plano-periodo">/mês</span></p>
-      <p class="plano-descricao">Sabe o ano de lançamento de cor e adora debater cada cena.</p>
-      <ul class="plano-lista">
-        <li>Tudo do plano Cinéfilo</li>
-        <li>Favoritar filmes</li>
-        <li>Comentar e ler a opinião de outros fãs</li>
-      </ul>
-      <a routerLink="/registro" class="btn-primario btn-plano">Escolher plano</a>
-    </div>
-
-    <div class="plano-card">
-      <span class="plano-icone">🕵️</span>
-      <h3>Stalker do Tom Hanks</h3>
-      <p class="plano-preco">R$ 9.999,90<span class="plano-periodo">/mês</span></p>
-      <p class="plano-descricao">Já decorou a filmografia inteira e sabe até o nome do cachorro do elenco.</p>
-      <ul class="plano-lista">
-        <li>Tudo do plano Nerd</li>
-        <li>Acesso vitalício ao fã-clube</li>
-        <li>Nível de dedicação: PhD em Forrest Gump</li>
-      </ul>
-      <a routerLink="/registro" class="btn-secundario btn-plano">Escolher plano</a>
-    </div>
-  </div>
-</section>
-
-<section class="vitrine">
-  <h2>Alguns filmes do catálogo</h2>
-
-  @if (carregando()) {
-    <p class="status">Carregando pôsteres...</p>
-  } @else if (filmes().length === 0) {
-    <p class="status">Catálogo indisponível no momento.</p>
-  } @else {
-    <div class="grade-posteres">
-      @for (filme of filmes(); track filme.tmdb_movie_id) {
-        <div class="poster-card">
-          <img [src]="filme.poster_url" [alt]="filme.titulo" loading="lazy" />
-          <div class="poster-sombra">
-            <p>{{ filme.titulo }}</p>
+<main>
+  <section class="hero">
+    <div class="container hero-grade">
+      <div class="hero-texto">
+        <span class="sobretitulo">Feito para professor do fundamental e do médio</span>
+        <h1>A prova da semana <span class="marca-texto">pronta</span> antes do intervalo.</h1>
+        <p class="hero-lead">
+          Monte provas de múltipla escolha, organize por turma e deixe a apostila em PDF junto. No
+          Professor Pro, gere uma versão B embaralhada com um clique — e diminua a cola sem dar mais
+          trabalho.
+        </p>
+        <div class="linha">
+          <a class="btn btn-primario btn-g" routerLink="/registro">Criar conta grátis</a>
+          <a class="btn btn-secundario btn-g" routerLink="/" fragment="como-funciona">Ver como funciona</a>
+        </div>
+        <p class="ajuda">Grátis para 1 turma. Sem cartão de crédito. Funciona no notebook da escola e no celular.</p>
+      </div>
+      <div class="hero-arte" aria-hidden="true">
+        <div class="folha folha-b">
+          <div class="folha-cab"><strong>Versão B</strong><span class="ajuda">Questões e alternativas embaralhadas</span></div>
+        </div>
+        <div class="folha folha-frente">
+          <div class="folha-cab">
+            <strong style="font-family: var(--fonte-titulo); font-size: 1.125rem">Avaliação bimestral — Citologia</strong>
+            <span class="ajuda">1º A — Biologia · E.E. Prof. João Cruz · 2026</span>
+          </div>
+          <div class="pilha" style="gap: 8px">
+            <p style="font-weight: 700">1. Qual organela é responsável pela respiração celular?</p>
+            <div class="bolhas"><span>A</span><span class="marcada">B</span><span>C</span><span>D</span><span>E</span></div>
+          </div>
+          <div class="pilha" style="gap: 8px">
+            <p style="font-weight: 700">2. Qual estrutura existe na célula vegetal e não na animal?</p>
+            <div class="bolhas"><span>A</span><span>B</span><span class="marcada">C</span><span>D</span></div>
+          </div>
+          <div class="pilha" style="gap: 8px">
+            <p style="font-weight: 700">3. A síntese de proteínas ocorre principalmente nos…</p>
+            <div class="bolhas"><span>A</span><span class="marcada">B</span><span>C</span></div>
           </div>
         </div>
-      }
+      </div>
     </div>
-    <div class="vitrine-cta">
-      <p>Crie sua conta para favoritar e comentar cada filme.</p>
-      <a routerLink="/registro" class="btn-primario">Quero ver tudo</a>
+  </section>
+
+  <section class="secao secao-alt" id="como-funciona" aria-labelledby="t-como">
+    <div class="container">
+      <div class="secao-cab">
+        <span class="sobretitulo">Como funciona</span>
+        <h2 id="t-como">Três passos, do caderno para a sala</h2>
+      </div>
+      <ol class="passos">
+        <li class="passo">
+          <span class="passo-num" aria-hidden="true">1</span>
+          <h3>Cadastre suas turmas</h3>
+          <p class="suave">Nome, disciplina, escola e ano. Os alunos entram com nº de chamada, do jeito do diário.</p>
+        </li>
+        <li class="passo">
+          <span class="passo-num" aria-hidden="true">2</span>
+          <h3>Monte a prova</h3>
+          <p class="suave">Escreva o enunciado, de 2 a 5 alternativas e marque a correta. O gabarito sai pronto.</p>
+        </li>
+        <li class="passo">
+          <span class="passo-num" aria-hidden="true">3</span>
+          <h3>Aplique e reaproveite</h3>
+          <p class="suave">Imprima, gere a versão B se quiser e guarde tudo organizado para o próximo bimestre.</p>
+        </li>
+      </ol>
     </div>
-  }
-</section>
+  </section>
+
+  <section class="secao" id="recursos" aria-labelledby="t-recursos">
+    <div class="container">
+      <div class="secao-cab">
+        <span class="sobretitulo">Recursos</span>
+        <h2 id="t-recursos">O que você precisa, sem o que atrapalha</h2>
+      </div>
+      <div class="grade">
+        <article class="cartao recurso">
+          <span class="recurso-ic"><app-icone nome="checklist" /></span>
+          <h3>Montar prova</h3>
+          <p class="suave">Questões de múltipla escolha com assunto, ordem ajustável e alternativa correta marcada.</p>
+        </article>
+        <article class="cartao recurso">
+          <span class="recurso-ic"><app-icone nome="pessoas" /></span>
+          <h3>Turmas</h3>
+          <p class="suave">Cada prova fica ligada à turma. Filtre por 1º A, 2º C… e ache tudo em segundos.</p>
+        </article>
+        <article class="cartao recurso">
+          <span class="recurso-ic"><app-icone nome="pdfLinhas" /></span>
+          <h3>PDF da apostila</h3>
+          <p class="suave">Anexe o material de apoio na prova e abra direto no projetor ou no celular.</p>
+        </article>
+        <article class="cartao recurso">
+          <div class="cartao-cab">
+            <span class="recurso-ic"><app-icone nome="embaralhar" /></span>
+            <span class="selo selo-pro">Pro</span>
+          </div>
+          <h3>Versão B</h3>
+          <p class="suave">Questões e alternativas embaralhadas, com o gabarito acompanhando a nova ordem.</p>
+        </article>
+        <article class="cartao recurso">
+          <div class="cartao-cab">
+            <span class="recurso-ic"><app-icone nome="camera" /></span>
+            <span class="selo selo-em-breve">Em breve</span>
+          </div>
+          <h3>Correção por foto</h3>
+          <p class="suave">Fotografe o gabarito preenchido pelo aluno e receba a nota. Estamos construindo.</p>
+        </article>
+      </div>
+    </div>
+  </section>
+
+  <section class="secao secao-alt" id="planos" aria-labelledby="t-planos">
+    <div class="container">
+      <div class="secao-cab">
+        <span class="sobretitulo">Planos e preços</span>
+        <h2 id="t-planos">Comece grátis. Mude quando precisar.</h2>
+      </div>
+      <div class="planos">
+        @for (plano of planos; track plano.papel) {
+          <article class="cartao plano" [class.destaque]="plano.destaque">
+            @if (plano.destaque) {
+              <span class="selo selo-pro plano-fita">Mais escolhido</span>
+            }
+            <h3 class="cartao-titulo">{{ plano.nome }}</h3>
+            <p class="plano-preco">{{ plano.preco }} <small>{{ plano.periodo }}</small></p>
+            <ul class="plano-lista">
+              @for (item of plano.itens; track item) {
+                <li><app-icone nome="check" />{{ item }}</li>
+              }
+            </ul>
+            <a class="btn btn-bloco" [class.btn-primario]="plano.destaque" [class.btn-secundario]="!plano.destaque" routerLink="/registro">
+              {{ plano.chamada }}
+            </a>
+          </article>
+        }
+      </div>
+    </div>
+  </section>
+
+  <section class="secao" aria-label="Depoimento">
+    <div class="container">
+      <figure class="depoimento" style="margin: 0">
+        <blockquote>
+          “Tenho seis turmas e pouco tempo. Agora monto a prova no notebook da escola, confiro o
+          gabarito no celular e a versão B acabou com a cola do fundão.”
+        </blockquote>
+        <figcaption>
+          <span class="avatar" style="width: 56px; height: 56px; font-size: 1.125rem" aria-hidden="true">MR</span>
+          <span class="pilha" style="gap: 2px">
+            <strong>Marta Ribeiro</strong>
+            <span class="suave">Professora de Biologia · escola estadual · 6 turmas · persona do produto</span>
+          </span>
+        </figcaption>
+      </figure>
+    </div>
+  </section>
+
+  <section class="secao secao-alt" id="faq" aria-labelledby="t-faq">
+    <div class="container">
+      <div class="secao-cab">
+        <span class="sobretitulo">Dúvidas</span>
+        <h2 id="t-faq">Perguntas frequentes</h2>
+      </div>
+      <div class="faq">
+        <details open>
+          <summary>Preciso instalar alguma coisa?<app-icone nome="setaBaixo" /></summary>
+          <p>Não. O ProvaPronta funciona no navegador do notebook da escola e no celular.</p>
+        </details>
+        <details>
+          <summary>Como funciona a versão B?<app-icone nome="setaBaixo" /></summary>
+          <p>A ordem das questões e das alternativas é embaralhada, e o gabarito acompanha a nova ordem. Recurso do Professor Pro.</p>
+        </details>
+        <details>
+          <summary>Posso cancelar o Pro quando quiser?<app-icone nome="setaBaixo" /></summary>
+          <p>Sim. A assinatura é mensal; ao cancelar, você volta para o plano Free e suas provas continuam salvas.</p>
+        </details>
+        <details>
+          <summary>Quando chega a correção por foto?<app-icone nome="setaBaixo" /></summary>
+          <p>Está em desenvolvimento. Quem tem conta recebe o aviso assim que liberarmos.</p>
+        </details>
+      </div>
+    </div>
+  </section>
+
+  <section class="secao">
+    <div class="container cta-final">
+      <h2 style="font-size: clamp(1.75rem, 3.6vw, 2.5rem)">Sua próxima prova pode sair hoje.</h2>
+      <p class="suave" style="font-size: 1.125rem">Crie a conta, cadastre uma turma e monte a primeira prova em poucos minutos.</p>
+      <a class="btn btn-primario btn-g" routerLink="/registro">Criar conta grátis</a>
+    </div>
+  </section>
+</main>
 
 <footer class="rodape">
-  <img src="/logo-faixa.svg" alt="Tom Hanks — catálogo de filmes" class="rodape-logo" />
-  <nav class="rodape-links">
-    <a routerLink="/login">Entrar</a>
-    <a routerLink="/registro">Criar conta</a>
-  </nav>
+  <div class="container rodape-grade">
+    <div class="rodape-col" style="max-width: 320px">
+      <app-logo [tamanho]="28" />
+      <p class="suave">Provas de múltipla escolha para professores do fundamental e do médio.</p>
+    </div>
+    <nav class="rodape-col" aria-label="Produto">
+      <strong>Produto</strong>
+      <a routerLink="/" fragment="recursos">Recursos</a>
+      <a routerLink="/" fragment="planos">Planos</a>
+      <a routerLink="/" fragment="faq">Dúvidas</a>
+    </nav>
+    <nav class="rodape-col" aria-label="Conta">
+      <strong>Conta</strong>
+      <a routerLink="/login">Entrar</a>
+      <a routerLink="/registro">Criar conta grátis</a>
+    </nav>
+  </div>
+  <div class="container" style="margin-top: 32px">
+    <p class="ajuda">© {{ ano }} ProvaPronta · projeto acadêmico (ISW055)</p>
+  </div>
 </footer>

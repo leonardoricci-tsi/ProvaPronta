@@ -1,34 +1,38 @@
-import { CommonModule } from '@angular/common';
-import { Component, OnInit, signal } from '@angular/core';
-import { Router, RouterLink, RouterLinkActive } from '@angular/router';
+import { Component, ElementRef, HostListener, OnInit, inject, signal } from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
+import { NavigationEnd, Router, RouterLink, RouterLinkActive } from '@angular/router';
+import { filter } from 'rxjs';
 
+import { SELO_PAPEL } from '../../core/papeis';
 import { AuthService } from '../../core/services/auth.service';
 import { PremiumService } from '../../core/services/premium.service';
 import { ProfileService } from '../../core/services/profile.service';
-
-const NOME_PAPEL: Record<string, string> = {
-  professor: 'Professor',
-  professor_pro: 'Professor Pro',
-  coordenador: 'Coordenador',
-  admin: 'Admin',
-};
+import { TemaService } from '../../core/services/tema.service';
+import { Icone } from '../../shared/icone/icone';
+import { Logo } from '../../shared/logo/logo';
 
 @Component({
   selector: 'app-header',
   standalone: true,
-  imports: [CommonModule, RouterLink, RouterLinkActive],
+  imports: [RouterLink, RouterLinkActive, Icone, Logo],
   templateUrl: './header.html',
-  styleUrl: './header.css',
 })
 export class Header implements OnInit {
-  readonly menuAberto = signal(false);
+  private readonly elemento = inject(ElementRef<HTMLElement>);
+  readonly authService = inject(AuthService);
+  readonly profileService = inject(ProfileService);
+  readonly temaService = inject(TemaService);
+  private readonly premiumService = inject(PremiumService);
+  private readonly router = inject(Router);
 
-  constructor(
-    readonly authService: AuthService,
-    readonly profileService: ProfileService,
-    readonly premiumService: PremiumService,
-    private readonly router: Router,
-  ) {}
+  readonly menuAberto = signal(false);
+  readonly gavetaAberta = signal(false);
+
+  constructor() {
+    // Trocar de tela fecha o menu e a gaveta do celular.
+    this.router.events.pipe(filter((e) => e instanceof NavigationEnd), takeUntilDestroyed())
+      .subscribe(() => this.fechar());
+  }
 
   ngOnInit(): void {
     // O header só existe dentro da área logada (AppShell), então aqui
@@ -41,24 +45,52 @@ export class Header implements OnInit {
   }
 
   get iniciais(): string {
-    const nome = this.authService.usuario()?.nome ?? '?';
-    return nome.trim().charAt(0).toUpperCase();
+    const partes = (this.authService.usuario()?.nome ?? '?').trim().split(/\s+/);
+    const ultima = partes.length > 1 ? partes[partes.length - 1].charAt(0) : '';
+    return (partes[0].charAt(0) + ultima).toUpperCase();
   }
 
-  get nomePapel(): string {
+  get primeiroNome(): string {
+    return (this.authService.usuario()?.nome ?? '').trim().split(/\s+/)[0];
+  }
+
+  get selo(): { texto: string; classe: string } {
     const papel = this.authService.usuario()?.role ?? '';
-    return NOME_PAPEL[papel] ?? papel;
+    return SELO_PAPEL[papel] ?? { texto: papel, classe: 'selo selo-free' };
   }
 
-  toggleMenu(): void {
+  alternarMenu(): void {
     this.menuAberto.update((aberto) => !aberto);
+    this.gavetaAberta.set(false);
+  }
+
+  alternarGaveta(): void {
+    this.gavetaAberta.update((aberta) => !aberta);
+    this.menuAberto.set(false);
+  }
+
+  fechar(): void {
+    this.menuAberto.set(false);
+    this.gavetaAberta.set(false);
+  }
+
+  @HostListener('document:keydown.escape')
+  aoApertarEsc(): void {
+    this.fechar();
+  }
+
+  @HostListener('document:click', ['$event'])
+  aoClicarFora(evento: MouseEvent): void {
+    if (!this.elemento.nativeElement.contains(evento.target as Node)) {
+      this.fechar();
+    }
   }
 
   sair(): void {
     this.authService.logout();
     this.profileService.limparMinhaFoto();
     this.premiumService.limpar();
-    this.menuAberto.set(false);
+    this.fechar();
     this.router.navigate(['/']);
   }
 }

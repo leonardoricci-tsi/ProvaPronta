@@ -1,48 +1,45 @@
-<div class="auth-page">
-  <div class="auth-card">
-    <div class="auth-cena">
-      <img src="/fundo-login.svg" alt="" class="auth-cena-fundo" />
-      <img src="/logo.svg" alt="Tom Hanks — catálogo de filmes" class="auth-cena-logo" />
+<div class="acesso tela-cheia">
+  <app-logo />
+  <form class="cartao form" (ngSubmit)="entrar()" #f="ngForm">
+    <div class="pilha" style="gap: 6px">
+      <h1>Entrar</h1>
+      <p class="suave">Que bom te ver de novo.</p>
     </div>
 
-    <form class="auth-form" (ngSubmit)="entrar()">
-      <h2>Entrar</h2>
-
-      <label class="campo">
-        <span class="campo-icone" aria-hidden="true">
-          <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <rect x="3" y="5" width="18" height="14" rx="2" />
-            <path d="M3 7l9 6 9-6" />
-          </svg>
-        </span>
-        <input type="email" name="email" [(ngModel)]="email" placeholder="Email" required />
-      </label>
-
-      <label class="campo">
-        <span class="campo-icone" aria-hidden="true">
-          <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <rect x="5" y="11" width="14" height="9" rx="2" />
-            <path d="M8 11V7a4 4 0 0 1 8 0v4" />
-          </svg>
-        </span>
-        <input type="password" name="senha" [(ngModel)]="senha" placeholder="Senha" required />
-      </label>
-
-      @if (erro()) {
-        <p class="erro">{{ erro() }}</p>
-      }
-
-      <div class="auth-form-opcoes">
-        <a routerLink="/esqueci-senha">Esqueci minha senha</a>
+    @if (erro()) {
+      <div class="alerta alerta-erro" role="alert">
+        <app-icone nome="erro" />
+        <div class="alerta-corpo">
+          <strong>{{ erro() }}</strong>
+          <span>Confira e tente de novo, ou redefina a senha.</span>
+        </div>
       </div>
+    }
 
-      <button type="submit" [disabled]="carregando()">
-        {{ carregando() ? 'Entrando...' : 'Entrar' }}
-      </button>
+    <div class="campo">
+      <label for="l-email">E-mail</label>
+      <input class="entrada" id="l-email" type="email" name="email" autocomplete="email"
+        placeholder="seu@email.com" [(ngModel)]="email" required [disabled]="carregando()" />
+    </div>
+    <div class="campo" [class.campo-erro]="erro()">
+      <div class="linha" style="justify-content: space-between">
+        <label class="rotulo" for="l-senha">Senha</label>
+        <a routerLink="/esqueci-senha" style="font-size: .9375rem">Esqueci a senha</a>
+      </div>
+      <input class="entrada" id="l-senha" type="password" name="senha" autocomplete="current-password"
+        [(ngModel)]="senha" required [disabled]="carregando()" [attr.aria-invalid]="erro() ? true : null" />
+    </div>
 
-      <p class="link-secundario">
-        Não tem conta? <a routerLink="/registro">Cadastre-se</a>
-      </p>
-    </form>
-  </div>
+    <button class="btn btn-primario btn-bloco" type="submit" [disabled]="f.invalid" [attr.aria-busy]="carregando()">
+      @if (carregando()) {
+        <app-icone nome="girando" />
+        Entrando…
+      } @else {
+        Entrar
+      }
+    </button>
+    <p class="suave" style="text-align: center">
+      Ainda não tem conta? <a routerLink="/registro">Criar conta grátis</a>
+    </p>
+  </form>
 </div>

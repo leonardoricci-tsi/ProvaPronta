@@ -1,102 +1,99 @@
-<h1>Painel de admin</h1>
+<div class="cab-pagina">
+  <div class="pilha" style="gap: 6px">
+    <h1>Painel de admin</h1>
+    <p class="suave">Usuários e papéis, e os eventos de auditoria do log-service.</p>
+  </div>
+</div>
 
-<div class="abas">
-  <button class="btn-aba" [class.ativa]="abaAtiva() === 'usuarios'" (click)="trocarAba('usuarios')">
+<div class="abas" role="tablist" aria-label="Seções do admin">
+  <button class="aba" role="tab" type="button" [attr.aria-selected]="abaAtiva() === 'usuarios'" (click)="abaAtiva.set('usuarios')">
     Usuários
   </button>
-  <button
-    class="btn-aba"
-    [class.ativa]="abaAtiva() === 'comentarios'"
-    (click)="trocarAba('comentarios')"
-  >
-    Comentários
-  </button>
-  <button
-    class="btn-aba"
-    [class.ativa]="abaAtiva() === 'favoritos'"
-    (click)="trocarAba('favoritos')"
-  >
-    Favoritos
+  <button class="aba" role="tab" type="button" [attr.aria-selected]="abaAtiva() === 'eventos'" (click)="abaAtiva.set('eventos')">
+    Eventos de auditoria
   </button>
 </div>
 
 @if (abaAtiva() === 'usuarios') {
   @if (carregandoUsuarios()) {
-    <p>Carregando...</p>
+    <span class="esqueleto" style="height: 200px; border-radius: 10px" aria-hidden="true"></span>
+    <span class="sr-only" role="status">Carregando usuários…</span>
   } @else if (usuarios().length === 0) {
-    <p class="vazio">Nenhum usuário cadastrado.</p>
+    <p class="suave">Nenhum usuário cadastrado.</p>
   } @else {
-    <table class="tabela">
-      <thead>
-        <tr>
-          <th>Nome</th>
-          <th>E-mail</th>
-          <th>Papel</th>
-        </tr>
-      </thead>
-      <tbody>
-        @for (usuario of usuarios(); track usuario.id) {
+    <div class="tabela-caixa">
+      <table class="tabela">
+        <thead>
           <tr>
-            <td>{{ usuario.nome }}</td>
-            <td class="email">{{ usuario.email }}</td>
-            <td>
-              <select
-                class="select-papel"
-                (change)="alterarPapel(usuario, $any($event.target).value)"
-              >
-                @for (papel of PAPEIS; track papel) {
-                  <option [value]="papel" [selected]="papel === usuario.role">{{ papel }}</option>
-                }
-              </select>
-            </td>
+            <th scope="col">Nome</th>
+            <th scope="col">E-mail</th>
+            <th scope="col">Papel</th>
           </tr>
-        }
-      </tbody>
-    </table>
+        </thead>
+        <tbody>
+          @for (usuario of usuarios(); track usuario.id) {
+            <tr>
+              <td>{{ usuario.nome }}</td>
+              <td class="suave">{{ usuario.email }}</td>
+              <td>
+                <div class="selecao" style="max-width: 220px">
+                  <select class="entrada" [attr.aria-label]="'Papel de ' + usuario.nome"
+                    (change)="alterarPapel(usuario, $any($event.target).value)">
+                    @for (papel of PAPEIS; track papel) {
+                      <option [value]="papel" [selected]="papel === usuario.role">{{ SELO_PAPEL[papel].texto }}</option>
+                    }
+                  </select>
+                  <app-icone nome="setaBaixo" />
+                </div>
+              </td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    </div>
   }
 }
 
-@if (abaAtiva() === 'comentarios') {
-  @if (carregandoComentarios()) {
-    <p>Carregando...</p>
-  } @else if (comentarios().length === 0) {
-    <p class="vazio">Nenhum comentário cadastrado.</p>
+@if (abaAtiva() === 'eventos') {
+  <div class="linha" style="justify-content: space-between">
+    <p class="suave">Os 100 eventos mais recentes, do mais novo para o mais antigo.</p>
+    <button class="btn btn-secundario" type="button" (click)="carregarEventos()" [disabled]="carregandoEventos()">
+      <app-icone nome="trocar" />
+      Atualizar
+    </button>
+  </div>
+  @if (carregandoEventos()) {
+    <span class="esqueleto" style="height: 200px; border-radius: 10px" aria-hidden="true"></span>
+    <span class="sr-only" role="status">Carregando eventos…</span>
+  } @else if (erroEventos()) {
+    <div class="alerta alerta-erro" role="alert">
+      <app-icone nome="erro" />
+      <div class="alerta-corpo"><strong>{{ erroEventos() }}</strong></div>
+    </div>
+  } @else if (eventos().length === 0) {
+    <p class="suave">Nenhum evento registrado ainda.</p>
   } @else {
-    <ul class="lista">
-      @for (comentario of comentarios(); track comentario.id) {
-        <li>
-          <div class="conteudo">
-            <div class="cabecalho">
-              <strong>{{ comentario.nome_usuario || 'Usuário #' + comentario.id }}</strong>
-              <button class="btn-remover" (click)="removerComentario(comentario)">Remover</button>
-            </div>
-            <p class="filme">{{ comentario.titulo || 'Filme #' + comentario.tmdb_movie_id }}</p>
-            <p>{{ comentario.texto }}</p>
-          </div>
-        </li>
-      }
-    </ul>
-  }
-}
-
-@if (abaAtiva() === 'favoritos') {
-  @if (carregandoFavoritos()) {
-    <p>Carregando...</p>
-  } @else if (favoritos().length === 0) {
-    <p class="vazio">Nenhum favorito cadastrado.</p>
-  } @else {
-    <ul class="lista">
-      @for (favorito of favoritos(); track favorito.id) {
-        <li>
-          <div class="conteudo">
-            <div class="cabecalho">
-              <strong>{{ favorito.titulo }}</strong>
-              <button class="btn-remover" (click)="removerFavorito(favorito)">Remover</button>
-            </div>
-            <p class="filme">Usuário #{{ favorito.usuario_id }}</p>
-          </div>
-        </li>
-      }
-    </ul>
+    <div class="tabela-caixa">
+      <table class="tabela">
+        <thead>
+          <tr>
+            <th scope="col">Quando</th>
+            <th scope="col">Usuário</th>
+            <th scope="col">Ação</th>
+            <th scope="col">IP</th>
+          </tr>
+        </thead>
+        <tbody>
+          @for (evento of eventos(); track $index) {
+            <tr>
+              <td>{{ evento.timestamp | date: 'dd/MM/yyyy HH:mm:ss' }}</td>
+              <td>#{{ evento.usuario_id }}</td>
+              <td class="mono">{{ evento.acao }}</td>
+              <td class="suave">{{ evento.ip || '—' }}</td>
+            </tr>
+          }
+        </tbody>
+      </table>
+    </div>
   }
 }

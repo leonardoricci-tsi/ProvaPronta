@@ -1,0 +1,194 @@
+<nav class="migalha" aria-label="Você está em">
+  <a routerLink="/app/provas">Provas</a>
+  <app-icone nome="setaDireita" tamanho="p" />
+  @if (provaId) {
+    <a [routerLink]="['/app/provas', provaId]">{{ titulo || 'Prova' }}</a>
+    <app-icone nome="setaDireita" tamanho="p" />
+    <span aria-current="page">Editar</span>
+  } @else {
+    <span aria-current="page">Nova prova</span>
+  }
+</nav>
+<h1 style="font-size: clamp(1.75rem, 4vw, 2.25rem)">{{ provaId ? 'Editar prova' : 'Nova prova' }}</h1>
+
+@if (carregando()) {
+  <span class="sr-only" role="status">Carregando…</span>
+  <span class="esqueleto" style="height: 220px; border-radius: 16px" aria-hidden="true"></span>
+} @else if (falhouAoCarregar()) {
+  <div class="alerta alerta-erro" role="alert">
+    <app-icone nome="erro" />
+    <div class="alerta-corpo">
+      <strong>{{ erro() }}</strong>
+      <a routerLink="/app/provas">Voltar para Minhas provas</a>
+    </div>
+  </div>
+} @else if (turmas().length === 0 && !provaId) {
+  <div class="vazio">
+    <span class="vazio-ic"><app-icone nome="pessoas" tamanho="g" /></span>
+    <h2>Crie uma turma primeiro</h2>
+    <p>Toda prova pertence a uma turma.</p>
+    <a class="btn btn-primario" routerLink="/app/turmas"><app-icone nome="mais" />Criar turma</a>
+  </div>
+} @else {
+  <form class="form" style="gap: 24px" (ngSubmit)="salvar()" novalidate>
+    <section class="cartao" aria-labelledby="t-dados">
+      <h2 class="cartao-titulo" id="t-dados">Dados da prova</h2>
+      <div class="campo" [class.campo-erro]="tentouSalvar() && !titulo.trim()">
+        <label for="p-titulo">Título</label>
+        <input class="entrada" id="p-titulo" name="titulo" type="text" [(ngModel)]="titulo" maxlength="200"
+          placeholder="Avaliação bimestral — Citologia" />
+        @if (tentouSalvar() && !titulo.trim()) {
+          <span class="msg-erro"><app-icone nome="erro" tamanho="p" />Dê um título para a prova.</span>
+        }
+      </div>
+      <div class="grade-form">
+        <div class="campo">
+          <label for="p-turma">Turma</label>
+          <div class="selecao">
+            <select class="entrada" id="p-turma" name="turma" [(ngModel)]="turmaId">
+              @for (turma of turmas(); track turma.id) {
+                <option [ngValue]="turma.id">{{ turma.nome }} — {{ turma.disciplina }}</option>
+              }
+            </select>
+            <app-icone nome="setaBaixo" />
+          </div>
+        </div>
+        <div class="campo">
+          <label for="p-data">Data de aplicação <span class="opcional">(opcional)</span></label>
+          <input class="entrada" id="p-data" name="data" type="date" [(ngModel)]="dataAplicacao" />
+        </div>
+        <div class="campo">
+          <span class="rotulo" id="p-sit">Situação</span>
+          <div class="segmentado" role="radiogroup" aria-labelledby="p-sit">
+            <label [class.ativo]="status === 'rascunho'">
+              <input class="radio" type="radio" name="status" value="rascunho" [(ngModel)]="status" />Rascunho
+            </label>
+            <label [class.ativo]="status === 'pronta'">
+              <input class="radio" type="radio" name="status" value="pronta" [(ngModel)]="status" />Pronta
+            </label>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <section class="pilha" aria-labelledby="t-quest" style="gap: 16px">
+      <div class="cartao-cab">
+        <h2 id="t-quest" style="font-size: 1.375rem">
+          Questões <span class="suave" style="font-weight: 600">({{ questoes.length }})</span>
+        </h2>
+        <span class="ajuda">Marque o círculo da alternativa correta. De 2 a 5 alternativas.</span>
+      </div>
+
+      @for (q of questoes; track q.chave; let i = $index, primeira = $first, ultima = $last) {
+        <article class="editor-questao" [class.invalida]="tentouSalvar() && questaoInvalida(q)" [attr.aria-label]="'Questão ' + (i + 1)">
+          <div class="editor-cab">
+            <strong class="questao-num">Questão {{ i + 1 }}</strong>
+            <div class="linha" style="gap: 4px">
+              <button class="btn btn-fantasma btn-icone" type="button" [attr.aria-label]="'Subir questão ' + (i + 1)"
+                [disabled]="primeira" (click)="moverQuestao(i, -1)"><app-icone nome="setaCima" /></button>
+              <button class="btn btn-fantasma btn-icone" type="button" [attr.aria-label]="'Descer questão ' + (i + 1)"
+                [disabled]="ultima" (click)="moverQuestao(i, 1)"><app-icone nome="setaBaixo" /></button>
+              <button class="btn btn-fantasma btn-icone btn-perigo-ic" type="button" [attr.aria-label]="'Remover questão ' + (i + 1)"
+                (click)="removerQuestao(i)"><app-icone nome="lixo" /></button>
+            </div>
+          </div>
+          <div class="editor-corpo">
+            <div class="campo" [class.campo-erro]="tentouSalvar() && semEnunciado(q)">
+              <label [for]="'enun-' + q.chave">Enunciado</label>
+              <textarea class="entrada" [id]="'enun-' + q.chave" [name]="'enunciado-' + q.chave" [(ngModel)]="q.enunciado"
+                maxlength="5000" placeholder="Escreva a pergunta"
+                [attr.aria-invalid]="tentouSalvar() && semEnunciado(q) ? true : null"></textarea>
+              @if (tentouSalvar() && semEnunciado(q)) {
+                <span class="msg-erro"><app-icone nome="erro" tamanho="p" />Escreva o enunciado da questão.</span>
+              }
+            </div>
+
+            <fieldset class="pilha" style="border: 0; margin: 0; padding: 0; gap: 8px">
+              <legend class="rotulo" style="margin-bottom: 8px">Alternativas</legend>
+              @for (alt of q.alternativas; track $index; let j = $index) {
+                <div class="alt-editor" [class.correta]="q.resposta_correta === j">
+                  <label class="marcar-correta">
+                    <input class="radio" type="radio" [name]="'certa-' + q.chave" [checked]="q.resposta_correta === j"
+                      (change)="q.resposta_correta = j" />
+                    <span class="sr-only">Marcar {{ letras[j] }} como correta</span>
+                  </label>
+                  <span class="letra" [class.marcada]="q.resposta_correta === j" aria-hidden="true">{{ letras[j] }}</span>
+                  <input class="entrada" type="text" [name]="'alt-' + q.chave + '-' + j" [value]="alt"
+                    (input)="q.alternativas[j] = $any($event.target).value"
+                    [attr.aria-label]="'Alternativa ' + letras[j] + (q.resposta_correta === j ? ' (correta)' : '')" />
+                  <button class="btn btn-fantasma btn-icone" type="button" [attr.aria-label]="'Remover alternativa ' + letras[j]"
+                    [disabled]="q.alternativas.length <= minAlternativas" (click)="removerAlternativa(q, j)">
+                    <app-icone nome="fechar" />
+                  </button>
+                </div>
+              }
+              @if (tentouSalvar() && alternativaVazia(q)) {
+                <span class="msg-erro"><app-icone nome="erro" tamanho="p" />Preencha todas as alternativas.</span>
+              }
+              @if (tentouSalvar() && semCorreta(q)) {
+                <span class="msg-erro"><app-icone nome="erro" tamanho="p" />Marque qual alternativa é a correta.</span>
+              }
+              <div class="linha">
+                <button class="btn btn-fantasma" type="button" [disabled]="q.alternativas.length >= maxAlternativas"
+                  (click)="adicionarAlternativa(q)">
+                  <app-icone nome="mais" />
+                  Adicionar alternativa
+                </button>
+                @if (q.alternativas.length >= maxAlternativas) {
+                  <span class="ajuda">Máximo de 5 alternativas (A–E).</span>
+                } @else if (q.alternativas.length <= minAlternativas) {
+                  <span class="ajuda">Mínimo de 2: por isso “remover” está desativado.</span>
+                }
+              </div>
+            </fieldset>
+
+            <div class="campo" style="max-width: 360px">
+              <label [for]="'assunto-' + q.chave">Assunto <span class="opcional">(opcional)</span></label>
+              <input class="entrada" [id]="'assunto-' + q.chave" [name]="'assunto-' + q.chave" type="text"
+                [(ngModel)]="q.assunto" maxlength="100" placeholder="Ex.: Organelas" />
+            </div>
+          </div>
+        </article>
+      }
+
+      <button class="btn btn-secundario btn-g btn-tracejado" type="button" (click)="adicionarQuestao()">
+        <app-icone nome="mais" />
+        Adicionar questão
+      </button>
+    </section>
+
+    @if (erro()) {
+      <div class="alerta alerta-erro" role="alert">
+        <app-icone nome="erro" />
+        <div class="alerta-corpo">
+          <strong>{{ erro() }}</strong>
+          @if (bateuLimite()) {
+            <a routerLink="/app/planos">Ver planos</a>
+          }
+        </div>
+      </div>
+    }
+
+    <div class="barra-salvar">
+      @if (tentouSalvar() && pendencias().length > 0) {
+        <p class="msg-erro" role="alert" style="font-size: .9375rem; flex: 1 1 320px">
+          <app-icone nome="erro" />
+          <span>Falta preencher: {{ pendencias().join(' · ') }}.</span>
+        </p>
+      } @else {
+        <p class="ajuda" style="flex: 1 1 320px">
+          {{ questoes.length }} {{ questoes.length === 1 ? 'questão' : 'questões' }}
+          @if (pendencias().length === 0 && questoes.length > 0) {
+            · todas com enunciado e alternativa correta.
+          }
+        </p>
+      }
+      <div class="linha" style="gap: 8px">
+        <a class="btn btn-fantasma" [routerLink]="provaId ? ['/app/provas', provaId] : ['/app/provas']">Cancelar</a>
+        <button class="btn btn-primario" type="submit" [disabled]="salvando()">
+          {{ salvando() ? 'Salvando…' : 'Salvar prova' }}
+        </button>
+      </div>
+    </div>
+  </form>
+}

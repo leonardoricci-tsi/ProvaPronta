@@ -1,58 +1,72 @@
 @switch (retorno()) {
   @case ('confirmando') {
-    <div class="aviso">
-      <span class="spinner" aria-hidden="true"></span>
-      Pagamento recebido pelo Stripe. Aguardando a confirmação chegar…
+    <div class="alerta alerta-info" role="status">
+      <app-icone nome="girando" />
+      <div class="alerta-corpo"><strong>Pagamento recebido pelo Stripe.</strong><span>Aguardando a confirmação chegar…</span></div>
     </div>
   }
   @case ('confirmado') {
-    <div class="aviso sucesso">★ Pagamento confirmado! Agora você está no plano {{ nomePlanoAtual }}.</div>
+    <div class="alerta alerta-sucesso" role="status">
+      <app-icone nome="check" />
+      <div class="alerta-corpo"><strong>Pagamento confirmado!</strong><span>Agora você está no plano {{ nomePlanoAtual }}.</span></div>
+    </div>
   }
   @case ('demorou') {
-    <div class="aviso alerta">
-      A confirmação do pagamento ainda não chegou. Ela pode levar alguns instantes — recarregue a
-      página daqui a pouco.
+    <div class="alerta alerta-aviso" role="status">
+      <app-icone nome="info" />
+      <div class="alerta-corpo">
+        <strong>A confirmação do pagamento ainda não chegou.</strong>
+        <span>Ela pode levar alguns instantes — recarregue a página daqui a pouco.</span>
+      </div>
     </div>
   }
   @case ('cancelado') {
-    <div class="aviso">Pagamento cancelado. Nada foi cobrado.</div>
+    <div class="alerta alerta-info" role="status">
+      <app-icone nome="info" />
+      <div class="alerta-corpo"><strong>Pagamento cancelado.</strong><span>Nada foi cobrado.</span></div>
+    </div>
   }
 }
 
-<h1>Escolha o seu nível de fã</h1>
-<p class="subtitulo">
-  Seu plano atual: <strong>{{ nomePlanoAtual }}</strong>. Quanto maior a obsessão, maior o plano.
-</p>
+<div class="pilha" style="gap: 8px; max-width: 680px">
+  <h1 style="font-size: clamp(1.75rem, 4vw, 2.25rem)">Planos</h1>
+  <p class="suave" style="font-size: 1.0625rem">
+    Você está no <strong>{{ nomePlanoAtual }}</strong>. {{ fraseAtual }}
+  </p>
+</div>
 
-<div class="grade-planos">
+<div class="planos" style="margin-top: 16px">
   @for (plano of planos; track plano.papel) {
     @let estado = situacao(plano);
-    <div class="plano-card" [class.plano-destaque]="plano.destaque" [class.plano-atual]="estado === 'atual'">
+    <article
+      class="cartao plano"
+      [class.atual]="estado === 'atual'"
+      [class.destaque]="estado !== 'atual' && plano.destaque"
+      [attr.aria-label]="plano.nome"
+    >
       @if (estado === 'atual') {
-        <span class="plano-selo">Seu plano</span>
-      } @else if (plano.destaque) {
-        <span class="plano-selo">Mais popular</span>
+        <span class="selo selo-pronta plano-fita"><app-icone nome="check" tamanho="p" />Seu plano atual</span>
       }
-      <span class="plano-icone">{{ plano.icone }}</span>
-      <h3>{{ plano.nome }}</h3>
-      <p class="plano-preco">{{ plano.preco }}<span class="plano-periodo">{{ plano.periodo }}</span></p>
-      <p class="plano-descricao">{{ plano.descricao }}</p>
+      <h2 class="cartao-titulo">{{ plano.nome }}</h2>
+      <p class="plano-preco">{{ plano.preco }} <small>{{ plano.periodo }}</small></p>
+      <p class="suave">{{ plano.para }}</p>
       <ul class="plano-lista">
-        @for (beneficio of plano.beneficios; track beneficio) {
-          <li>{{ beneficio }}</li>
+        @for (item of plano.itens; track item) {
+          <li><app-icone nome="check" />{{ item }}</li>
         }
       </ul>
 
       @switch (estado) {
         @case ('atual') {
-          <button class="btn-plano btn-secundario" disabled>Plano atual</button>
+          <button class="btn btn-secundario btn-bloco" type="button" disabled>Plano atual</button>
         }
         @case ('incluso') {
-          <button class="btn-plano btn-secundario" disabled>Incluso no seu plano</button>
+          <button class="btn btn-secundario btn-bloco" type="button" disabled>Incluso no seu plano</button>
         }
         @default {
           <button
-            class="btn-plano"
+            class="btn btn-bloco"
+            type="button"
             [class.btn-primario]="plano.destaque"
             [class.btn-secundario]="!plano.destaque"
             [disabled]="abrindo() !== null || retorno() === 'confirmando'"
@@ -62,14 +76,17 @@
           </button>
         }
       }
-    </div>
+    </article>
   }
 </div>
 
 @if (erro()) {
-  <p class="erro">{{ erro() }}</p>
+  <div class="alerta alerta-erro" role="alert">
+    <app-icone nome="erro" />
+    <div class="alerta-corpo"><strong>{{ erro() }}</strong></div>
+  </div>
 }
-<p class="nota">
-  O pagamento é feito na página segura do Stripe — este site nunca vê o número do seu cartão.
-  Ambiente de teste: nenhuma cobrança real.
+<p class="ajuda">
+  Valores mensais em reais. O pagamento é feito na página segura do Stripe — este site nunca vê o
+  número do seu cartão. Ambiente de teste: nenhuma cobrança real.
 </p>

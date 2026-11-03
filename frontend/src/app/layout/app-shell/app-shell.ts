@@ -8,6 +8,5 @@ import { Header } from '../header/header';
   standalone: true,
   imports: [RouterOutlet, Header],
   templateUrl: './app-shell.html',
-  styleUrl: './app-shell.css',
 })
 export class AppShell {}

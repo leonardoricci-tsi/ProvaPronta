@@ -1,59 +1,48 @@
-<div class="auth-page">
-  <div class="auth-card">
-    <div class="auth-cena">
-      <img src="/fundo-login.svg" alt="" class="auth-cena-fundo" />
-      <img src="/logo.svg" alt="Tom Hanks — catálogo de filmes" class="auth-cena-logo" />
+<div class="acesso tela-cheia">
+  <app-logo />
+  <form class="cartao form" (ngSubmit)="cadastrar()" #f="ngForm">
+    <div class="pilha" style="gap: 6px">
+      <h1>Criar conta grátis</h1>
+      <p class="suave">1 turma e 2 provas por mês, sem cartão.</p>
     </div>
 
-    <form class="auth-form" (ngSubmit)="cadastrar()">
-      <h2>Cadastrar</h2>
+    @if (erro()) {
+      <div class="alerta alerta-erro" role="alert">
+        <app-icone nome="erro" />
+        <div class="alerta-corpo"><strong>{{ erro() }}</strong></div>
+      </div>
+    }
 
-      <label class="campo">
-        <span class="campo-icone" aria-hidden="true">
-          <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <circle cx="12" cy="8" r="4" />
-            <path d="M4 20c0-4 4-6 8-6s8 2 8 6" />
-          </svg>
-        </span>
-        <input type="text" name="nome" [(ngModel)]="nome" placeholder="Nome" required />
-      </label>
-
-      <label class="campo">
-        <span class="campo-icone" aria-hidden="true">
-          <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <rect x="3" y="5" width="18" height="14" rx="2" />
-            <path d="M3 7l9 6 9-6" />
-          </svg>
-        </span>
-        <input type="email" name="email" [(ngModel)]="email" placeholder="Email" required />
-      </label>
-
-      <label class="campo">
-        <span class="campo-icone" aria-hidden="true">
-          <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-            <rect x="5" y="11" width="14" height="9" rx="2" />
-            <path d="M8 11V7a4 4 0 0 1 8 0v4" />
-          </svg>
-        </span>
-        <input
-          type="password"
-          name="senha"
-          [(ngModel)]="senha"
-          placeholder="Senha (mín. 8 caracteres)"
-          minlength="8"
-          required
-        />
-      </label>
-
-      @if (erro()) {
-        <p class="erro">{{ erro() }}</p>
+    <div class="campo">
+      <label for="c-nome">Nome</label>
+      <input class="entrada" id="c-nome" type="text" name="nome" autocomplete="name"
+        placeholder="Como você quer ser chamada(o)" [(ngModel)]="nome" required [disabled]="carregando()" />
+    </div>
+    <div class="campo">
+      <label for="c-email">E-mail</label>
+      <input class="entrada" id="c-email" type="email" name="email" autocomplete="email"
+        placeholder="seu@email.com" [(ngModel)]="email" required [disabled]="carregando()" />
+    </div>
+    <div class="campo" [class.campo-erro]="senhaCurta.invalid && senhaCurta.touched">
+      <label for="c-senha">Senha</label>
+      <input class="entrada" id="c-senha" type="password" name="senha" autocomplete="new-password"
+        [(ngModel)]="senha" #senhaCurta="ngModel" required minlength="8" [disabled]="carregando()"
+        aria-describedby="c-senha-ajuda" />
+      @if (senhaCurta.invalid && senhaCurta.touched) {
+        <span class="msg-erro" id="c-senha-ajuda"><app-icone nome="erro" tamanho="p" />Use pelo menos 8 caracteres.</span>
+      } @else {
+        <span class="ajuda" id="c-senha-ajuda">Pelo menos 8 caracteres.</span>
       }
+    </div>
 
-      <button type="submit" [disabled]="carregando()">
-        {{ carregando() ? 'Cadastrando...' : 'Cadastrar' }}
-      </button>
-
-      <p class="link-secundario">Já tem conta? <a routerLink="/login">Entrar</a></p>
-    </form>
-  </div>
+    <button class="btn btn-primario btn-bloco" type="submit" [disabled]="f.invalid" [attr.aria-busy]="carregando()">
+      @if (carregando()) {
+        <app-icone nome="girando" />
+        Criando conta…
+      } @else {
+        Criar conta
+      }
+    </button>
+    <p class="suave" style="text-align: center">Já tem conta? <a routerLink="/login">Entrar</a></p>
+  </form>
 </div>
