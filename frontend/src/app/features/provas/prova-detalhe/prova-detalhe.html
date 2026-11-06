@@ -214,6 +214,34 @@
         }
       </section>
 
+      <section class="cartao" aria-labelledby="t-imprimir">
+        <h2 class="cartao-titulo" id="t-imprimir">Imprimir</h2>
+        <p class="suave">
+          Uma folha de respostas por aluno da turma, com QR code e marcas nos cantos para a correção por foto, e o caderno
+          com as questões (sem o gabarito).
+        </p>
+        <div class="pilha" style="gap: 8px">
+          <button class="btn btn-primario" type="button" (click)="imprimir('folhas-resposta')"
+            [disabled]="gerandoImpressao() !== null || p.total_questoes === 0">
+            <app-icone [nome]="gerandoImpressao() === 'folhas-resposta' ? 'girando' : 'checklist'" />
+            {{ gerandoImpressao() === 'folhas-resposta' ? 'Gerando…' : 'Folhas de resposta' }}
+          </button>
+          <button class="btn btn-secundario" type="button" (click)="imprimir('caderno')"
+            [disabled]="gerandoImpressao() !== null || p.total_questoes === 0">
+            <app-icone [nome]="gerandoImpressao() === 'caderno' ? 'girando' : 'pdfLinhas'" />
+            {{ gerandoImpressao() === 'caderno' ? 'Gerando…' : 'Caderno da prova' }}
+          </button>
+        </div>
+        @if (erroImpressao()) {
+          <p class="msg-erro" role="alert">
+            <app-icone nome="erro" tamanho="p" />{{ erroImpressao() }}
+            @if (erroImpressao().includes('alunos')) {
+              <a [routerLink]="['/app/turmas', p.turma.id]">Cadastrar alunos</a>
+            }
+          </p>
+        }
+      </section>
+
       <section class="cartao" aria-labelledby="t-info">
         <h2 class="cartao-titulo" id="t-info">Sobre a prova</h2>
         <dl class="dados">

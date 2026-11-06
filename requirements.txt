@@ -15,6 +15,8 @@ python-multipart==0.0.32
 boto3==1.43.103
 # Texto do PDF da apostila, pra gerar questões com IA
 pypdf==5.1.0
+# Folha de respostas (com QR code) e caderno da prova em PDF
+reportlab==4.2.5
 # Plano premium (atividade 7): checkout e webhook do Stripe
 stripe==16.0.0
 

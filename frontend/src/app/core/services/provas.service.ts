@@ -51,6 +51,12 @@ export class ProvasService {
     return this.http.post<QuestoesGeradas>(`/provas/${id}/gerar-questoes`, { quantidade, ...fontes });
   }
 
+  // PDF pra imprimir: uma folha de respostas por aluno, ou o caderno da
+  // prova. Vem como Blob porque a rota exige o token (não dá pra só linkar).
+  baixarPdf(id: number, tipo: 'folhas-resposta' | 'caderno'): Observable<Blob> {
+    return this.http.get(`/provas/${id}/${tipo}.pdf`, { responseType: 'blob' });
+  }
+
   enviarMaterial(id: number, arquivo: File): Observable<ProvaDetalhe> {
     // Sem Content-Type manual: o navegador monta o multipart com o boundary.
     const corpo = new FormData();

@@ -2,7 +2,7 @@ import random
 from pathlib import PurePath
 from uuid import uuid4
 
-from fastapi import APIRouter, Depends, File, HTTPException, Query, Request, UploadFile, status
+from fastapi import APIRouter, Depends, File, HTTPException, Query, Request, Response, UploadFile, status
 from sqlalchemy.orm import Session, selectinload
 
 from app.auth.dependencies import UsuarioAutenticado, get_current_user, require_papel_minimo
@@ -13,6 +13,7 @@ from app.openapi_responses import (
     RESP_403_LIMITE_FREE,
     RESP_404,
     RESP_409_APROVACAO,
+    RESP_409_FOLHAS,
     RESP_502_STORAGE,
     RESP_ERROS_GERACAO,
     RESP_ERROS_MATERIAL,
@@ -29,7 +30,7 @@ from app.schemas.prova import (
     ProvaUpdateIn,
     QuestaoIn,
 )
-from app.services import gerador_questoes, log_client, pdf, planos, storage
+from app.services import folha_resposta, gerador_questoes, log_client, pdf, planos, storage
 
 router = APIRouter(prefix="/provas", tags=["provas"])
 
@@ -294,6 +295,90 @@ def gerar_questoes_do_pdf(
         fonte=nomes[0] if len(nomes) == 1 else f"{len(nomes)} PDFs",
         fontes=nomes,
     )
+
+
+def _resposta_pdf(conteudo: bytes, nome_arquivo: str) -> Response:
+    # inline: abre no visualizador do navegador (de onde dá pra imprimir).
+    return Response(
+        content=conteudo,
+        media_type="application/pdf",
+        headers={"Content-Disposition": f'inline; filename="{nome_arquivo}"'},
+    )
+
+
+def _data_br(prova: Prova) -> str | None:
+    return prova.data_aplicacao.strftime("%d/%m/%Y") if prova.data_aplicacao else None
+
+
+_RESP_PDF = {200: {"content": {"application/pdf": {}}, "description": "PDF pronto para imprimir"}}
+
+
+@router.get(
+    "/{prova_id}/folhas-resposta.pdf",
+    response_class=Response,
+    responses=_RESP_PDF | RESP_401 | RESP_404 | RESP_409_FOLHAS,
+)
+def folhas_de_resposta(
+    prova_id: int,
+    request: Request,
+    usuario_atual: UsuarioAutenticado = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> Response:
+    """Uma folha por aluno da turma: QR code (prova + aluno), grade de
+    bolinhas A–E por questão e marcas nos cantos pra correção por foto."""
+    prova = get_owned_or_404(db, Prova, prova_id, usuario_atual.id)
+    if not prova.questoes:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="A prova ainda não tem questões")
+    alunos = prova.turma.alunos
+    if not alunos:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail="Cadastre os alunos da turma antes de imprimir as folhas de resposta",
+        )
+    turma = f"{prova.turma.nome} — {prova.turma.disciplina}"
+    alternativas = [len(q.alternativas) for q in prova.questoes]
+    conteudo = folha_resposta.gerar_folhas(
+        [
+            folha_resposta.DadosFolha(
+                prova_id=prova.id,
+                titulo=prova.titulo,
+                turma=turma,
+                data_aplicacao=_data_br(prova),
+                aluno_id=aluno.id,
+                aluno_nome=aluno.nome,
+                numero_chamada=aluno.numero_chamada,
+                alternativas_por_questao=alternativas,
+            )
+            for aluno in alunos
+        ]
+    )
+    log_client.registrar_evento(
+        usuario_atual.id, f"folhas_geradas:prova:{prova.id}:{len(alunos)}", ip=_ip(request)
+    )
+    return _resposta_pdf(conteudo, f"folhas-resposta-prova-{prova.id}.pdf")
+
+
+@router.get(
+    "/{prova_id}/caderno.pdf",
+    response_class=Response,
+    responses=_RESP_PDF | RESP_401 | RESP_404 | RESP_409_FOLHAS,
+)
+def caderno_da_prova(
+    prova_id: int,
+    usuario_atual: UsuarioAutenticado = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> Response:
+    """O caderno com as questões pra imprimir — sem o gabarito."""
+    prova = get_owned_or_404(db, Prova, prova_id, usuario_atual.id)
+    if not prova.questoes:
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="A prova ainda não tem questões")
+    conteudo = folha_resposta.gerar_caderno(
+        prova.titulo,
+        f"{prova.turma.nome} — {prova.turma.disciplina}",
+        _data_br(prova),
+        [folha_resposta.QuestaoCaderno(q.enunciado, list(q.alternativas)) for q in prova.questoes],
+    )
+    return _resposta_pdf(conteudo, f"caderno-prova-{prova.id}.pdf")
 
 
 @router.post(

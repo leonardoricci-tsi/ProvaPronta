@@ -43,7 +43,7 @@ Criadas pela seed [`db/002_seed_dominio.sql`](db/002_seed_dominio.sql) (a Marta 
 | Entrar · Criar conta · Esqueci a senha | `/login`, `/registro`, `/esqueci-senha` | Conta própria (JWT); o "esqueci a senha" manda um e-mail com a marca, de `no-reply@provapronta.online` |
 | Minhas provas | `/app/provas` | Lista com filtro por turma, selo rascunho/pronta e marca de PDF anexado |
 | Nova / editar prova | `/app/provas/nova`, `/app/provas/:id/editar` | Editor de questões: enunciado, 2 a 5 alternativas, a correta marcada, assunto, reordenar; **gerar questões a partir do PDF com IA** (Pro) |
-| Detalhe da prova | `/app/provas/:id` | Gabarito destacado, **PDF da apostila** (enviar, abrir, trocar, remover), **gerar versão B** (Pro), **aprovar** (Escola), apagar |
+| Detalhe da prova | `/app/provas/:id` | Gabarito destacado, **PDF da apostila** (enviar, abrir, trocar, remover), **gerar versão B** (Pro), **aprovar** (Escola), **imprimir** folhas de resposta e caderno, apagar |
 | Materiais | `/app/materiais` | Biblioteca de PDFs em **pastas** (ex.: "1º ano — Matemática — 1º bimestre"): enviar vários de uma vez, abrir, remover, renomear e apagar a pasta |
 | Minhas turmas · Detalhe da turma | `/app/turmas`, `/app/turmas/:id` | Turmas, alunos com nº de chamada, provas da turma |
 | Relatório da coordenação | `/app/relatorio` | Totais, provas por turma e por situação, questões por assunto (Escola) |
@@ -55,7 +55,9 @@ Tema claro e escuro (segue o sistema; troca no menu do avatar) e layout que func
 
 **Gerar questões do PDF (Pro):** o professor escolhe a fonte — **uma pasta inteira** da biblioteca, **um PDF**, **vários PDFs** (de pastas diferentes) e/ou o PDF anexado à prova. A API extrai o texto (`pypdf`), reparte o espaço entre os arquivos para todos entrarem, e pede a um modelo de linguagem questões de múltipla escolha com gabarito e assunto. Elas voltam como **sugestão** para o editor — nada é gravado até o professor revisar e salvar. O provedor é configurável por variável de ambiente (`LLM_API_KEY`, `LLM_BASE_URL`, `LLM_MODEL`, API no formato da OpenAI): hoje o Groq; trocar pelo Claude é só configuração.
 
-**Roadmap** (no plano de negócio, ainda não construído): correção por foto do gabarito e banco de questões.
+**Folhas de resposta e caderno em PDF:** no detalhe da prova, "Folhas de resposta" gera **uma página por aluno da turma**, com o nome e o nº de chamada, um **QR code** com prova + aluno (`PP1:{prova}:{aluno}`), a grade de bolinhas A–E de cada questão e **4 marcas pretas nos cantos** para endireitar a foto. "Caderno da prova" gera as questões para imprimir, sem o gabarito. Os dois são gerados no servidor (`reportlab`), e a posição de cada marca e bolinha fica num só lugar ([`app/services/folha_resposta.py`](app/services/folha_resposta.py)), que a correção por foto vai usar para ler a folha.
+
+**Roadmap** (no plano de negócio, ainda não construído): correção por foto do gabarito (a folha já está pronta) e banco de questões.
 
 ## 2. Requisitos da atividade 10
 
@@ -220,6 +222,7 @@ A api e o auth-service mandam `POST /logs` para o log-service (fire-and-forget: 
 | `questoes_geradas:prova:{id}:{n}:pdfs:{k}` | Questões sugeridas pela IA a partir de k PDFs (Pro) |
 | `pasta_criada:{id}`, `pasta_renomeada:{id}`, `pasta_removida:{id}`, `materiais_enviados:pasta:{id}:{n}`, `material_removido:{id}` | Biblioteca de materiais |
 | `prova_aprovada:{id}`, `relatorio_coordenacao_consultado` | Ações da coordenação (Escola) |
+| `folhas_geradas:prova:{id}:{alunos}` | Folhas de resposta impressas |
 | `material_enviado:prova:{id}`, `material_removido:prova:{id}` | PDF da apostila |
 | `acesso_negado:{papel}`, `acesso_negado:limite_free:{turmas\|provas}`, `acesso_negado:admin`, `acesso_negado:perfil:{id}` | Toda ação barrada com 403 |
 | `abrir_checkout:{plano}`, `plano_ativado:{plano}`, `plano_cancelado:{plano}` | Assinatura (Stripe) |

@@ -39,6 +39,9 @@ export class ProvaDetalhe implements OnInit, OnDestroy {
   enviandoPdf = signal(false);
   erroPdf = signal('');
 
+  gerandoImpressao = signal<'folhas-resposta' | 'caderno' | null>(null);
+  erroImpressao = signal('');
+
   gerandoVersaoB = signal(false);
   erroVersaoB = signal('');
   // 403 do Free: em vez de erro, o convite pro Pro.
@@ -153,6 +156,41 @@ export class ProvaDetalhe implements OnInit, OnDestroy {
   cancelarRemocao(): void {
     clearTimeout(this.timerApagar);
     this.confirmandoRemocao.set(false);
+  }
+
+  imprimir(tipo: 'folhas-resposta' | 'caderno'): void {
+    const p = this.prova();
+    if (!p) return;
+    // A aba abre já no clique (antes da resposta) pra o navegador não tratar
+    // como pop-up; o PDF entra nela quando chegar.
+    const aba = window.open('', '_blank');
+    this.gerandoImpressao.set(tipo);
+    this.erroImpressao.set('');
+    this.provasService.baixarPdf(p.id, tipo).subscribe({
+      next: (blob) => {
+        const url = URL.createObjectURL(blob);
+        if (aba) aba.location.href = url;
+        else window.location.href = url;
+        // A aba já carregou o PDF; libera a memória depois.
+        setTimeout(() => URL.revokeObjectURL(url), 60_000);
+        this.gerandoImpressao.set(null);
+      },
+      error: (erro: HttpErrorResponse) => {
+        aba?.close();
+        // Erro com responseType blob vem como Blob: lê o detail do JSON dentro.
+        const lerDetalhe = erro.error instanceof Blob ? erro.error.text() : Promise.resolve('');
+        lerDetalhe.then((texto) => {
+          let detalhe = '';
+          try {
+            detalhe = JSON.parse(texto).detail ?? '';
+          } catch {
+            // corpo não era JSON
+          }
+          this.erroImpressao.set(typeof detalhe === 'string' && detalhe ? detalhe : 'Não foi possível gerar o PDF.');
+          this.gerandoImpressao.set(null);
+        });
+      },
+    });
   }
 
   gerarVersaoB(): void {

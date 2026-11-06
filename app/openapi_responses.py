@@ -135,6 +135,13 @@ RESP_ERROS_GERACAO = {
     ),
 }
 
+RESP_409_FOLHAS = {
+    409: _erro(
+        "A prova não tem questões, ou a turma não tem alunos (a folha é por aluno)",
+        "Cadastre os alunos da turma antes de imprimir as folhas de resposta",
+    )
+}
+
 RESP_ERROS_MATERIAL = {
     413: _erro("Arquivo acima do tamanho máximo (10 MB)", "PDF acima de 10 MB"),
     415: _erro("Arquivo não é um PDF (conferido pelo conteúdo, não pela extensão)", "Envie um arquivo PDF"),

@@ -41,6 +41,8 @@ Um SaaS para professores do fundamental e do médio: organizar turmas e alunos, 
 
 **Coordenação** (plano Escola). Aprovar uma prova pronta (status `aprovada`) e o relatório `/app/relatorio`: totais, provas por turma e por situação e quantas questões cobrem cada assunto.
 
+**Imprimir.** No detalhe da prova: folhas de resposta (uma página por aluno da turma, com QR code, bolinhas A–E e marcas de alinhamento nos cantos) e o caderno da prova (as questões, sem gabarito), em PDF.
+
 **Biblioteca de materiais.** Em `/app/materiais` o professor cria pastas (ex.: "1º ano — Matemática — 1º bimestre") e envia vários PDFs de uma vez (até 10 por envio, 10 MB cada). No Free, até 3 PDFs.
 
 **Gerar questões do PDF** (Pro ou acima). No editor da prova, o professor escolhe a fonte — uma pasta inteira, um PDF, vários PDFs e/ou o PDF anexado à prova — e a IA sugere de 3 a 10 questões com gabarito e assunto, que entram na lista para revisão; só são gravadas quando o professor salva.
@@ -214,6 +216,9 @@ Escada de papéis — cada um inclui os anteriores: `professor` (1) < `professor
 | M4 | `GET /provas/{id}/material` devolve uma URL pré-assinada que expira; prova sem PDF dá `404`. | `app/routers/provas.py`, `app/services/storage.py` |
 | G1 | `POST /provas/{id}/gerar-questoes` exige `professor_pro` ou acima (`403` no Free) e prova do próprio usuário (`404`). As fontes são `pasta_ids`, `material_ids` e `usar_pdf_da_prova`; sem nenhuma, usa o PDF da prova (`409` se não houver). Pasta ou PDF de outra pessoa dá `404`; pasta vazia, `409`; mais de 10 PDFs, `422`. | `app/routers/provas.py` |
 | G1b | Com vários PDFs, o teto de texto é repartido entre eles (o que um PDF curto não usa vai para os outros), cada um com o nome no cabeçalho. | `app/services/gerador_questoes.py` |
+| F1 | `GET /provas/{id}/folhas-resposta.pdf` gera uma página por aluno da turma; o QR leva `PP1:{prova}:{aluno}` e só identifica a folha — quem confere o dono é o servidor. Prova sem questões ou turma sem alunos dá `409`; prova de outro, `404`. Registra `folhas_geradas:prova:{id}:{n}`. | `app/routers/provas.py`, `app/services/folha_resposta.py` |
+| F2 | `GET /provas/{id}/caderno.pdf` traz as questões para imprimir, sem gabarito; o texto do professor é escapado (não vira marcação do PDF) e nenhuma questão quebra entre páginas. | `app/services/folha_resposta.py` |
+| F3 | A geometria da folha (marcas, QR e cada bolinha) é definida por constantes e funções puras num só módulo, testadas para 100 questões sem sair da página nem encostar nas marcas ou no QR — é dela que a correção por foto vai depender. | `app/services/folha_resposta.py`, `tests/test_folha_resposta.py` |
 | B1 | Pastas e PDFs da biblioteca são filtrados pelo dono na query (`404` para os de outra pessoa). Envio de vários PDFs é tudo ou nada: um arquivo inválido cancela o envio. Free guarda até 3 PDFs (`403`, `acesso_negado:limite_free:materiais`). Apagar a pasta apaga os PDFs no Garage. | `app/routers/biblioteca.py`, `app/services/planos.py` |
 | G2 | O texto é extraído do PDF no servidor (até 15 mil caracteres); PDF sem texto (escaneado) dá `422` sem chamar a IA. | `app/services/gerador_questoes.py` |
 | G3 | Sem `LLM_API_KEY`, falha, limite de uso ou resposta inaproveitável do provedor, a geração responde `503` com a mensagem em português — não `502`, porque o Cloudflare na frente do site troca todo `502` da origem pela página de erro dele. | `app/services/gerador_questoes.py`, `app/routers/provas.py` |
