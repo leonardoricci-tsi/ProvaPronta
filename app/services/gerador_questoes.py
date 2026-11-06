@@ -42,7 +42,10 @@ Regras:
 - As alternativas erradas devem ser plausíveis para quem não estudou.
 - Não use "todas as anteriores" nem "nenhuma das anteriores".
 - "assunto" é o tema da questão em até 4 palavras.
-- Escreva em português do Brasil, com enunciados curtos e claros."""
+- Escreva em português do Brasil, com enunciados curtos e claros.
+- Se o material estiver ilegível (símbolos sem sentido, texto embaralhado) ou não tiver \
+conteúdo suficiente para questões, responda {"questoes": [], "motivo": "..."} explicando \
+em uma frase curta, em português, por que não foi possível."""
 
 
 class GeracaoIndisponivel(Exception):
@@ -130,7 +133,15 @@ def extrair_texto_de_varios(arquivos: list[tuple[str, bytes]]) -> str:
 
 def _pedido(texto: str, quantidade: int, disciplina: str | None) -> dict:
     settings = get_settings()
-    contexto = f" da disciplina {disciplina}" if disciplina else ""
+    # A disciplina da turma é só contexto: as questões são sempre sobre o
+    # material. Pedir "questões de Biologia" com um PDF de Matemática fazia
+    # o modelo devolver lista vazia (não pode inventar fora do material).
+    contexto = (
+        f" A prova é para uma turma de {disciplina}, mas as questões devem ser sobre o "
+        "conteúdo do material, seja qual for a disciplina dele."
+        if disciplina
+        else ""
+    )
     pedido = {
         "model": settings.llm_model,
         "temperature": 0.4,
@@ -140,8 +151,8 @@ def _pedido(texto: str, quantidade: int, disciplina: str | None) -> dict:
             {
                 "role": "user",
                 "content": (
-                    f"Crie {quantidade} questões de múltipla escolha{contexto} "
-                    f"com base no material abaixo.\n\nMATERIAL:\n{texto}"
+                    f"Crie {quantidade} questões de múltipla escolha com base no material "
+                    f"abaixo.{contexto}\n\nMATERIAL:\n{texto}"
                 ),
             },
         ],
@@ -242,6 +253,17 @@ def _indice_da_resposta(bruto: object, alternativas: list[str]) -> int | None:
     return normalizadas.index(alvo) if alvo in normalizadas else None
 
 
+def _motivo(conteudo: str) -> str | None:
+    """A explicação que a IA dá quando devolve a lista vazia (pedida no
+    prompt), curta o bastante pra ir pra tela."""
+    try:
+        bruto = _json_da_resposta(conteudo)
+    except ValueError:
+        return None
+    motivo = bruto.get("motivo") if isinstance(bruto, dict) else None
+    return str(motivo).strip()[:300] or None if motivo else None
+
+
 def _questoes_validas(bruto: object, quantidade: int) -> list[QuestaoIn]:
     """Fica só com o que passa nas regras do editor; descarta o resto em
     vez de derrubar a geração inteira por uma questão malformada."""
@@ -297,6 +319,17 @@ def gerar_questoes(texto: str, quantidade: int, disciplina: str | None = None) -
         raise FalhaNaGeracao("A IA devolveu uma resposta em formato inesperado. Tente de novo.") from erro
 
     if not questoes:
-        logger.warning("IA sem questões válidas: %r", conteudo[:800])
+        # O texto que foi pra IA também vai pro log: PDF de revista com fonte
+        # sem mapeamento sai como símbolos, e a IA (corretamente) não inventa.
+        logger.warning(
+            "IA sem questões válidas: %r | texto extraído (%d caracteres): %r",
+            conteudo[:800],
+            len(texto),
+            texto[:400],
+        )
+        motivo = _motivo(conteudo)
+        if motivo:
+            # Problema do material, não do serviço: mesmo 422 do PDF sem texto.
+            raise PdfSemTexto(f"A IA não conseguiu gerar questões: {motivo}")
         raise FalhaNaGeracao("A IA não devolveu questões válidas. Tente de novo.")
     return questoes

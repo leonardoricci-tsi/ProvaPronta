@@ -108,7 +108,10 @@ def test_gera_sugestoes_a_partir_do_texto_do_pdf(client, garage_falso, ia, auth_
     # Padrão é o GPT OSS (Groq): raciocínio curto pra responder rápido.
     assert pedido["reasoning_effort"] == "low"
     mensagem = pedido["messages"][1]["content"]
-    assert "Crie 3 questões" in mensagem and "Biologia" in mensagem and "mitocôndria" in mensagem
+    assert "Crie 3 questões" in mensagem and "mitocôndria" in mensagem
+    # A disciplina da turma é contexto, não restrição: material de outra
+    # disciplina ainda gera questões sobre o material.
+    assert "turma de Biologia" in mensagem and "sobre o conteúdo do material" in mensagem
     # Sugestão não é gravada: a prova continua sem questões.
     assert client.get(f"/provas/{prova['id']}", headers=auth_headers(token)).json()["questoes"] == []
     corpos_log = b"\n".join(c.request.content for c in auth_service.routes[1].calls)
@@ -292,3 +295,15 @@ def test_resposta_que_nao_bate_com_nada_descarta_a_questao():
     from app.services.gerador_questoes import _questoes_validas
 
     assert _questoes_validas({"questoes": [{**QUESTAO_BOA, "resposta_correta": "Núcleo"}]}, 5) == []
+
+
+def test_lista_vazia_com_motivo_mostra_o_motivo(client, garage_falso, ia):
+    conteudo = json.dumps({"questoes": [], "motivo": "O texto do material está ilegível."})
+    ia.mock(return_value=Response(200, json={"choices": [{"message": {"content": conteudo}}]}))
+    token = criar_token(role="professor_pro")
+    prova = prova_com_pdf(client, token)
+
+    resposta = client.post(f"/provas/{prova['id']}/gerar-questoes", headers=auth_headers(token))
+
+    assert resposta.status_code == 422
+    assert resposta.json()["detail"] == "A IA não conseguiu gerar questões: O texto do material está ilegível."
