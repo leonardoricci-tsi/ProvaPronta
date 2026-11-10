@@ -47,7 +47,7 @@ Criadas pela seed [`db/002_seed_dominio.sql`](db/002_seed_dominio.sql) (a Marta 
 | Materiais | `/app/materiais` | Biblioteca de PDFs em **pastas** (ex.: "1º ano — Matemática — 1º bimestre"): enviar vários de uma vez, abrir, remover, renomear e apagar a pasta |
 | Minhas turmas · Detalhe da turma | `/app/turmas`, `/app/turmas/:id` | Turmas, alunos com nº de chamada, provas da turma |
 | Relatório da coordenação | `/app/relatorio` | Totais, provas por turma e por situação, questões por assunto (Escola) |
-| Planos | `/app/planos` | Free, Professor Pro e Escola, com checkout do Stripe (modo de teste) |
+| Planos | `/app/planos` | Free, Professor Pro e Escola, com checkout e portal da assinatura do Stripe (modo de teste) |
 | Perfil | `/app/perfil` | Foto, bio e selo do plano |
 | Admin | `/app/admin` | Usuários e papéis, e os eventos de auditoria do log-service |
 
@@ -193,11 +193,30 @@ Os papéis formam uma escada, cada um inclui os anteriores: `professor` (Free) <
 | `POST /provas/{id}/gerar-questoes` (IA) | **403** | ✅ | ✅ | ✅ |
 | `POST /provas/{id}/aprovar` | **403** | **403** `Ação exige papel 'coordenador' ou superior` | ✅ | ✅ |
 | `GET /coordenacao/relatorio` | **403** | **403** | ✅ | ✅ |
-| `GET /admin/logs`, `/auth/admin/users` | **403** | **403** | **403** | ✅ |
+| `GET /admin/resumo`, `/admin/logs`, `/auth/admin/users` | **403** | **403** | **403** | ✅ |
 
 **Aprovar prova:** só prova `pronta` pode ser aprovada (`409` para rascunho ou já aprovada). O status `aprovada` não pode ser enviado no corpo de `POST`/`PATCH /provas` (`422`), então ninguém se autoaprova pela API; e editar uma prova aprovada a devolve para `pronta`.
 
-Os planos pagos são vendidos pelo Stripe: o webhook assinado troca o papel no auth-service (`professor` → `professor_pro` ou `coordenador`). Testes: `tests/test_provas.py` (versão B e limite de provas), `tests/test_turmas.py` (limite de turmas), `tests/test_coordenacao.py` (aprovar e relatório) e `tests/test_premium_*.py`.
+Os planos pagos são vendidos pelo Stripe: o webhook assinado troca o papel no auth-service (`professor` → `professor_pro` ou `coordenador`). Testes: `tests/test_provas.py` (versão B e limite de provas), `tests/test_turmas.py` (limite de turmas), `tests/test_coordenacao.py` (aprovar e relatório), `tests/test_premium_*.py` e `tests/test_assinatura_recorrente.py`.
+
+### Assinatura recorrente (atividade 11)
+
+Pro (R$ 29,90/mês) e Escola (R$ 199,90/mês) são **assinaturas mensais** no Stripe, em **modo de teste**; o Free é o plano padrão de todo cadastro e não passa pelo Stripe. As chaves ficam só nas variáveis da stack no Portainer (nomes em [`.env.example`](.env.example)), e o cartão é digitado só na página do Stripe.
+
+1. **Checkout:** `POST /premium/checkout` cria (uma vez) o **customer** do Stripe do usuário, guardado em `assinaturas`, e abre uma Checkout Session com `mode=subscription` ligada a ele.
+2. **Webhooks** (`POST /premium/webhook`, assinatura `Stripe-Signature` validada): o plano só muda quando o evento chega, nunca pela volta do navegador.
+
+| Evento | O que acontece |
+|---|---|
+| `checkout.session.completed` | Guarda customer e assinatura, status `active`, valor mensal; troca o papel para o plano pago |
+| `customer.subscription.updated` | Atualiza plano (pelo **preço**, então a troca de plano no portal vale), status e valor. Status fora de `active`/`trialing` (ex.: `past_due`) volta a conta para o Free; voltar a `active` devolve o plano |
+| `customer.subscription.deleted` | Assinatura encerrada (cancelada no portal): volta para o Free |
+| `invoice.payment_failed` | Status `past_due`, volta para o Free na hora (o Pro não continua de graça), e-mail de aviso (Resend, pelo auth-service) e alerta em todas as telas |
+
+   O mesmo evento entregue duas vezes é ignorado na segunda: o `id` de cada evento processado fica na tabela `eventos_stripe`. Evento que falhou (ex.: auth-service fora, `502`) não é marcado, e o reenvio do Stripe processa.
+3. **Portal do cliente:** "Gerenciar assinatura" em `/app/planos` chama `POST /premium/portal`, que abre o Billing Portal do Stripe (trocar de plano, cartão, cancelar). Com pagamento pendente, o checkout responde `409` e manda regularizar no portal, para não criar uma segunda assinatura.
+4. **Limites por plano:** os do Free (1 turma, 2 provas por mês, 3 PDFs) são barrados na API com `403` e a mensagem diz o limite e como liberar ("Assine o Pro para criar mais").
+5. **Painel admin:** a aba **Visão geral** (`GET /admin/resumo`, só admin) mostra usuários por plano, assinaturas ativas, inadimplentes, o **MRR de teste** (soma do valor mensal das assinaturas ativas) e os últimos eventos.
 
 ## 6. Isolamento por usuário (404)
 
@@ -227,7 +246,8 @@ A api e o auth-service mandam `POST /logs` para o log-service (fire-and-forget: 
 | `folhas_geradas:prova:{id}:{alunos}` | Folhas de resposta impressas |
 | `material_enviado:prova:{id}`, `material_removido:prova:{id}` | PDF da apostila |
 | `acesso_negado:{papel}`, `acesso_negado:limite_free:{turmas\|provas}`, `acesso_negado:admin`, `acesso_negado:perfil:{id}` | Toda ação barrada com 403 |
-| `abrir_checkout:{plano}`, `plano_ativado:{plano}`, `plano_cancelado:{plano}` | Assinatura (Stripe) |
+| `abrir_checkout:{plano}`, `abrir_portal_assinatura`, `plano_ativado:{plano}`, `plano_alterado:{de}:{para}`, `plano_suspenso:{plano}:{status}`, `pagamento_recusado:{plano}`, `plano_cancelado:{plano}` | Assinatura (Stripe) |
+| `folha_lida:prova:{id}:aluno:{a}:{acertos}/{total}` | Correção por foto (leitura da folha) |
 | `login`, `logout`, `atualizar_perfil`, `upload_foto_perfil` | Conta e perfil |
 
 ## 8. Upload no object storage

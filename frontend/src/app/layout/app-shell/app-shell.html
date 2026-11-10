@@ -1,4 +1,13 @@
 <app-header />
 <main class="pagina">
+  @if (pagamentoPendente()) {
+    <div class="alerta alerta-erro" role="alert">
+      <app-icone nome="erro" />
+      <div class="alerta-corpo">
+        <strong>Não conseguimos cobrar sua assinatura.</strong>
+        <span>Sua conta está no plano Free até o pagamento passar. <a routerLink="/app/planos">Atualizar pagamento</a></span>
+      </div>
+    </div>
+  }
   <router-outlet />
 </main>

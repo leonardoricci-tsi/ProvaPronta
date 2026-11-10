@@ -70,14 +70,22 @@ RESP_502_LOG_SERVICE = {
 
 RESP_409_PLANO = {
     409: _erro(
-        "O papel atual do usuário já é o do plano pedido ou um acima (ou é admin)",
+        "O papel atual do usuário já é o do plano pedido ou um acima (ou é admin), ou a assinatura "
+        "atual está com pagamento pendente (regulariza no portal, não assina de novo)",
         "Você já tem esse plano ou um superior",
+    )
+}
+
+RESP_409_PORTAL = {
+    409: _erro(
+        "O usuário ainda não tem assinatura no Stripe para gerenciar",
+        "Você ainda não tem uma assinatura para gerenciar",
     )
 }
 
 RESP_ERROS_PAGAMENTO = {
     502: _erro(
-        "Stripe fora do ar ou recusou a criação do checkout",
+        "Stripe fora do ar ou recusou a chamada (checkout, customer ou portal)",
         "Provedor de pagamento indisponível no momento",
     ),
     503: _erro(

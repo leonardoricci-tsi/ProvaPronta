@@ -2,7 +2,7 @@ import { Injectable, signal } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { Observable, tap } from 'rxjs';
 
-import { CheckoutResposta, PlanoPago, StatusPremium } from '../../models/premium.model';
+import { CheckoutResposta, PlanoPago, PortalResposta, StatusPremium } from '../../models/premium.model';
 
 @Injectable({ providedIn: 'root' })
 export class PremiumService {
@@ -26,5 +26,11 @@ export class PremiumService {
   // o cartão é digitado lá, nunca neste site.
   abrirCheckout(plano: PlanoPago): Observable<CheckoutResposta> {
     return this.http.post<CheckoutResposta>('/premium/checkout', { plano });
+  }
+
+  // Portal do cliente do Stripe: trocar de plano, atualizar o cartão,
+  // cancelar. O que mudar lá chega no backend pelos webhooks.
+  abrirPortal(): Observable<PortalResposta> {
+    return this.http.post<PortalResposta>('/premium/portal', {});
   }
 }

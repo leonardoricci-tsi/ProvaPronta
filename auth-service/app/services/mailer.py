@@ -66,6 +66,71 @@ def montar_email_redefinicao(email: str, link: str) -> EmailMessage:
     return mensagem
 
 
+ASSUNTO_PAGAMENTO_RECUSADO = "Não conseguimos cobrar sua assinatura — ProvaPronta"
+
+NOMES_PLANOS = {"professor_pro": "Professor Pro", "coordenador": "Escola / Coordenador"}
+
+
+def montar_email_pagamento_recusado(email: str, nome: str, plano: str | None, link: str) -> EmailMessage:
+    """Atividade 11: a cobrança mensal foi recusada (invoice.payment_failed).
+    A conta voltou pro Free até o pagamento passar."""
+    settings = get_settings()
+    nome_plano = NOMES_PLANOS.get(plano or "", "pago")
+    texto = (
+        f"Olá, {nome}!\n\n"
+        f"Não conseguimos cobrar a mensalidade do seu plano {nome_plano} no ProvaPronta.\n"
+        "Enquanto o pagamento não for regularizado, sua conta fica no plano Free.\n\n"
+        f"Atualize o cartão em \"Gerenciar assinatura\", na página de planos:\n{link}\n\n"
+        "Assim que o pagamento passar, o plano volta sozinho.\n\n"
+        "— ProvaPronta · provas prontas para professores"
+    )
+    link_seguro = escape(link, quote=True)
+    html = f"""\
+<!doctype html>
+<html lang="pt-BR">
+<body style="margin:0;padding:24px;background:#F6F7F3;font-family:'Segoe UI',Arial,sans-serif;color:#1A1F2B">
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="max-width:520px;margin:0 auto">
+    <tr><td style="padding:0 0 16px;font-size:20px;font-weight:800">Prova<span style="color:#2747B8">Pronta</span></td></tr>
+    <tr><td style="background:#FFFFFF;border:1px solid #DADDD3;border-radius:16px;padding:32px">
+      <h1 style="margin:0 0 12px;font-size:22px">Não conseguimos cobrar sua assinatura</h1>
+      <p style="margin:0 0 12px;line-height:1.55;color:#4F5666">
+        Olá, {escape(nome)}! A mensalidade do plano <strong>{escape(nome_plano)}</strong> foi recusada.
+        Enquanto o pagamento não for regularizado, sua conta fica no plano Free.
+      </p>
+      <p style="margin:0 0 24px;line-height:1.55;color:#4F5666">Assim que o pagamento passar, o plano volta sozinho.</p>
+      <a href="{link_seguro}" style="display:inline-block;background:#2747B8;color:#FFFFFF;text-decoration:none;font-weight:700;padding:12px 22px;border-radius:10px">
+        Atualizar pagamento
+      </a>
+    </td></tr>
+    <tr><td style="padding:16px 0 0;font-size:13px;color:#4F5666">ProvaPronta · provas prontas para professores</td></tr>
+  </table>
+</body>
+</html>
+"""
+    mensagem = EmailMessage()
+    mensagem["Subject"] = ASSUNTO_PAGAMENTO_RECUSADO
+    mensagem["From"] = f"{settings.smtp_from_name} <{settings.smtp_from_email}>"
+    mensagem["To"] = email
+    mensagem.set_content(texto)
+    mensagem.add_alternative(html, subtype="html")
+    return mensagem
+
+
+def _enviar(mensagem: EmailMessage) -> None:
+    settings = get_settings()
+    try:
+        with smtplib.SMTP(settings.smtp_host, settings.smtp_port, timeout=10) as smtp:
+            smtp.starttls()
+            smtp.login(settings.smtp_user, settings.smtp_password)
+            smtp.send_message(mensagem)
+    except (smtplib.SMTPException, OSError) as erro:
+        print(f"[mailer] falha ao enviar \"{mensagem['Subject']}\" para {mensagem['To']}: {erro}", flush=True)
+
+
+def send_payment_failed_email(email: str, nome: str, plano: str | None, link: str) -> None:
+    _enviar(montar_email_pagamento_recusado(email, nome, plano, link))
+
+
 def send_reset_email(email: str, link: str) -> None:
     settings = get_settings()
     mensagem = montar_email_redefinicao(email, link)

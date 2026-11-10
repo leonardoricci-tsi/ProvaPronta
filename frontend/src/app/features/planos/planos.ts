@@ -13,7 +13,7 @@ import { Icone } from '../../shared/icone/icone';
 const INTERVALO_MS = 2000;
 const TENTATIVAS = 15;
 
-type Retorno = 'nenhum' | 'confirmando' | 'confirmado' | 'demorou' | 'cancelado';
+type Retorno = 'nenhum' | 'confirmando' | 'confirmado' | 'demorou' | 'cancelado' | 'portal';
 
 export interface Plano {
   papel: string;
@@ -75,7 +75,7 @@ const NIVEL: Record<string, number> = { professor: 1, professor_pro: 2, coordena
 })
 export class Planos implements OnInit, OnDestroy {
   private readonly route = inject(ActivatedRoute);
-  private readonly premiumService = inject(PremiumService);
+  readonly premiumService = inject(PremiumService);
   readonly authService = inject(AuthService);
 
   readonly planos = PLANOS;
@@ -95,7 +95,41 @@ export class Planos implements OnInit, OnDestroy {
       this.esperarConfirmacao(TENTATIVAS);
     } else if (checkout === 'cancelado') {
       this.retorno.set('cancelado');
+    } else if (this.route.snapshot.queryParamMap.get('portal') === 'voltou') {
+      // Voltou do portal do Stripe: troca de plano ou cancelamento chegam
+      // por webhook (em 1-3 s no teste). Atualiza o token (o papel pode ter
+      // mudado) e o status da assinatura.
+      this.retorno.set('portal');
+      this.timer = setTimeout(() => this.atualizarDepoisDoPortal(), INTERVALO_MS);
     }
+  }
+
+  private atualizarDepoisDoPortal(): void {
+    this.authService.renovarToken().subscribe({ error: () => undefined });
+    this.premiumService.carregarStatus().subscribe({ error: () => undefined });
+  }
+
+  // A cobrança do mês foi recusada: a conta está no Free até regularizar.
+  get pagamentoPendente(): boolean {
+    return this.premiumService.status()?.status === 'past_due';
+  }
+
+  get podeGerenciar(): boolean {
+    return this.premiumService.status()?.pode_gerenciar ?? false;
+  }
+
+  gerenciar(): void {
+    this.erro.set('');
+    this.abrindo.set('portal');
+    this.premiumService.abrirPortal().subscribe({
+      // Página inteira pro portal do Stripe (não é rota do Angular).
+      next: ({ portal_url }) => window.location.assign(portal_url),
+      error: (erro: HttpErrorResponse) => {
+        const detalhe = erro.error?.detail;
+        this.erro.set(typeof detalhe === 'string' ? detalhe : 'Não foi possível abrir o portal da assinatura.');
+        this.abrindo.set(null);
+      },
+    });
   }
 
   ngOnDestroy(): void {

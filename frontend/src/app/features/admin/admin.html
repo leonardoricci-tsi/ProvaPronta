@@ -1,11 +1,14 @@
 <div class="cab-pagina">
   <div class="pilha" style="gap: 6px">
     <h1>Painel de admin</h1>
-    <p class="suave">Usuários e papéis, e os eventos de auditoria do log-service.</p>
+    <p class="suave">O negócio numa tela: usuários por plano, assinaturas, receita mensal e eventos.</p>
   </div>
 </div>
 
 <div class="abas" role="tablist" aria-label="Seções do admin">
+  <button class="aba" role="tab" type="button" [attr.aria-selected]="abaAtiva() === 'visao'" (click)="abaAtiva.set('visao')">
+    Visão geral
+  </button>
   <button class="aba" role="tab" type="button" [attr.aria-selected]="abaAtiva() === 'usuarios'" (click)="abaAtiva.set('usuarios')">
     Usuários
   </button>
@@ -13,6 +16,87 @@
     Eventos de auditoria
   </button>
 </div>
+
+@if (abaAtiva() === 'visao') {
+  @if (carregandoResumo()) {
+    <span class="sr-only" role="status">Carregando visão geral…</span>
+    <div class="indicadores" aria-hidden="true">
+      @for (i of [1, 2, 3, 4]; track i) {
+        <span class="esqueleto" style="height: 84px; border-radius: 10px"></span>
+      }
+    </div>
+  } @else if (erroResumo()) {
+    <div class="alerta alerta-erro" role="alert">
+      <app-icone nome="erro" />
+      <div class="alerta-corpo"><strong>{{ erroResumo() }}</strong></div>
+    </div>
+  } @else if (resumo(); as r) {
+    <section class="pilha" style="gap: 8px" aria-labelledby="t-receita">
+      <div class="linha" style="justify-content: space-between">
+        <h2 class="cartao-titulo" id="t-receita">Assinaturas <span class="selo selo-free">modo de teste do Stripe</span></h2>
+        <button class="btn btn-secundario" type="button" (click)="carregarResumo()">
+          <app-icone nome="trocar" />
+          Atualizar
+        </button>
+      </div>
+      <div class="indicadores">
+        <div class="indicador">
+          <span class="ajuda">MRR (receita mensal)</span>
+          <strong>{{ reais(r.mrr_centavos) }}</strong>
+        </div>
+        <div class="indicador">
+          <span class="ajuda">Assinaturas ativas</span>
+          <strong>{{ r.assinaturas_ativas }}</strong>
+          <span class="ajuda">Pro {{ r.assinaturas_ativas_por_plano['professor_pro'] || 0 }} · Escola {{ r.assinaturas_ativas_por_plano['coordenador'] || 0 }}</span>
+        </div>
+        <div class="indicador">
+          <span class="ajuda">Pagamento recusado</span>
+          <strong>{{ r.inadimplentes }}</strong>
+        </div>
+      </div>
+    </section>
+
+    <section class="pilha" style="gap: 8px" aria-labelledby="t-planos">
+      <h2 class="cartao-titulo" id="t-planos">Usuários por plano <span class="suave">({{ r.total_usuarios }} no total)</span></h2>
+      <div class="indicadores">
+        @for (p of PLANOS_RESUMO; track p.papel) {
+          <div class="indicador">
+            <span class="ajuda">{{ p.nome }}</span>
+            <strong>{{ r.usuarios_por_plano[p.papel] || 0 }}</strong>
+          </div>
+        }
+      </div>
+    </section>
+
+    <section class="pilha" style="gap: 8px" aria-labelledby="t-recentes">
+      <h2 class="cartao-titulo" id="t-recentes">Últimos eventos</h2>
+      @if (r.eventos_recentes.length === 0) {
+        <p class="suave">Nenhum evento (ou o log-service não respondeu).</p>
+      } @else {
+        <div class="tabela-caixa">
+          <table class="tabela">
+            <thead>
+              <tr>
+                <th scope="col">Quando</th>
+                <th scope="col">Usuário</th>
+                <th scope="col">Ação</th>
+              </tr>
+            </thead>
+            <tbody>
+              @for (evento of r.eventos_recentes; track $index) {
+                <tr>
+                  <td>{{ evento.timestamp | date: 'dd/MM/yyyy HH:mm:ss' }}</td>
+                  <td>#{{ evento.usuario_id }}</td>
+                  <td class="mono">{{ evento.acao }}</td>
+                </tr>
+              }
+            </tbody>
+          </table>
+        </div>
+      }
+    </section>
+  }
+}
 
 @if (abaAtiva() === 'usuarios') {
   @if (carregandoUsuarios()) {

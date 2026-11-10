@@ -20,6 +20,15 @@
       </div>
     </div>
   }
+  @case ('portal') {
+    <div class="alerta alerta-info" role="status">
+      <app-icone nome="info" />
+      <div class="alerta-corpo">
+        <strong>Você voltou do portal da assinatura.</strong>
+        <span>Se trocou de plano ou cancelou, a mudança aparece aqui assim que o Stripe confirmar.</span>
+      </div>
+    </div>
+  }
   @case ('cancelado') {
     <div class="alerta alerta-info" role="status">
       <app-icone nome="info" />
@@ -34,6 +43,29 @@
     Você está no <strong>{{ nomePlanoAtual }}</strong>. {{ fraseAtual }}
   </p>
 </div>
+
+@if (pagamentoPendente) {
+  <div class="alerta alerta-erro" role="alert">
+    <app-icone nome="erro" />
+    <div class="alerta-corpo">
+      <strong>Não conseguimos cobrar a mensalidade da sua assinatura.</strong>
+      <span>Sua conta está no plano Free até o pagamento passar. Atualize o cartão para o plano voltar sozinho.</span>
+    </div>
+  </div>
+}
+
+@if (podeGerenciar) {
+  <section class="cartao linha" style="justify-content: space-between; flex-wrap: wrap; gap: 12px" aria-label="Sua assinatura">
+    <div class="pilha" style="gap: 4px">
+      <strong>Sua assinatura</strong>
+      <span class="suave">Troque de plano, atualize o cartão ou cancele no portal seguro do Stripe.</span>
+    </div>
+    <button class="btn btn-primario" type="button" [disabled]="abrindo() !== null" (click)="gerenciar()">
+      <app-icone nome="trocar" />
+      {{ abrindo() === 'portal' ? 'Abrindo…' : (pagamentoPendente ? 'Atualizar pagamento' : 'Gerenciar assinatura') }}
+    </button>
+  </section>
+}
 
 <div class="planos" style="margin-top: 16px">
   @for (plano of planos; track plano.papel) {
@@ -69,7 +101,7 @@
             type="button"
             [class.btn-primario]="plano.destaque"
             [class.btn-secundario]="!plano.destaque"
-            [disabled]="abrindo() !== null || retorno() === 'confirmando'"
+            [disabled]="abrindo() !== null || retorno() === 'confirmando' || pagamentoPendente"
             (click)="assinar(plano)"
           >
             {{ abrindo() === plano.papel ? 'Abrindo pagamento…' : 'Assinar ' + plano.nome }}

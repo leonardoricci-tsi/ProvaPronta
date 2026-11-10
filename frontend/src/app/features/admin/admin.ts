@@ -3,10 +3,10 @@ import { Component, OnInit, signal } from '@angular/core';
 
 import { SELO_PAPEL } from '../../core/papeis';
 import { AdminService } from '../../core/services/admin.service';
-import { AdminUsuario, EventoAuditoria } from '../../models/admin.model';
+import { AdminUsuario, EventoAuditoria, ResumoAdmin } from '../../models/admin.model';
 import { Icone } from '../../shared/icone/icone';
 
-type Aba = 'usuarios' | 'eventos';
+type Aba = 'visao' | 'usuarios' | 'eventos';
 
 @Component({
   selector: 'app-admin',
@@ -18,7 +18,19 @@ export class Admin implements OnInit {
   readonly PAPEIS = Object.keys(SELO_PAPEL);
   readonly SELO_PAPEL = SELO_PAPEL;
 
-  abaAtiva = signal<Aba>('usuarios');
+  abaAtiva = signal<Aba>('visao');
+
+  // Planos na ordem da escada (papel do RBAC = plano).
+  readonly PLANOS_RESUMO = [
+    { papel: 'professor', nome: 'Free' },
+    { papel: 'professor_pro', nome: 'Professor Pro' },
+    { papel: 'coordenador', nome: 'Escola' },
+    { papel: 'admin', nome: 'Admin' },
+  ];
+
+  resumo = signal<ResumoAdmin | null>(null);
+  carregandoResumo = signal(true);
+  erroResumo = signal('');
 
   usuarios = signal<AdminUsuario[]>([]);
   eventos = signal<EventoAuditoria[]>([]);
@@ -29,8 +41,30 @@ export class Admin implements OnInit {
   constructor(private readonly adminService: AdminService) {}
 
   ngOnInit(): void {
+    this.carregarResumo();
     this.carregarUsuarios();
     this.carregarEventos();
+  }
+
+  private readonly formatoReais = new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' });
+
+  reais(centavos: number): string {
+    return this.formatoReais.format(centavos / 100);
+  }
+
+  carregarResumo(): void {
+    this.carregandoResumo.set(true);
+    this.erroResumo.set('');
+    this.adminService.resumo().subscribe({
+      next: (resumo) => {
+        this.resumo.set(resumo);
+        this.carregandoResumo.set(false);
+      },
+      error: () => {
+        this.erroResumo.set('Não foi possível montar a visão geral agora.');
+        this.carregandoResumo.set(false);
+      },
+    });
   }
 
   private carregarUsuarios(): void {

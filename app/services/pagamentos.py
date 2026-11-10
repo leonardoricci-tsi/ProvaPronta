@@ -8,6 +8,11 @@ _client: stripe.StripeClient | None = None
 # Free (professor) não está aqui: é o plano gratuito, papel padrão do cadastro.
 PLANOS_PAGOS = ("professor_pro", "coordenador")
 
+# Status da assinatura no Stripe em que o cliente está pagando em dia. Fora
+# deles (past_due, unpaid, canceled, incomplete...) o plano pago não vale:
+# o Pro não continua de graça.
+STATUS_PAGANTES = ("active", "trialing")
+
 
 class PagamentoNaoConfigurado(Exception):
     """Chaves/preços do Stripe vazios — venda de planos desligada neste ambiente."""
@@ -28,6 +33,18 @@ def _preco_do_plano(plano: str) -> str:
     ]
 
 
+def plano_do_preco(price_id: str | None) -> str | None:
+    """Qual plano é este price_... — é por ele (e não pelo metadata) que se
+    sabe o plano depois de uma troca feita no portal do cliente, porque lá o
+    Stripe troca o preço da assinatura e o metadata continua o antigo."""
+    if not price_id:
+        return None
+    settings = get_settings()
+    precos = {settings.stripe_price_pro: "professor_pro", settings.stripe_price_escola: "coordenador"}
+    precos.pop("", None)
+    return precos.get(price_id)
+
+
 def _get_client() -> stripe.StripeClient:
     global _client
     settings = get_settings()
@@ -40,7 +57,35 @@ def _get_client() -> stripe.StripeClient:
     return _client
 
 
-def criar_checkout(usuario_id: int, plano: str) -> str:
+def criar_cliente(usuario_id: int, nome: str) -> str:
+    """Cria o customer do Stripe deste usuário (uma vez só: o ID fica na
+    tabela `assinaturas`). Com o customer guardado ANTES do checkout, todo
+    evento do Stripe — inclusive os que chegam antes do
+    checkout.session.completed — já diz de quem é pelo `customer`."""
+    try:
+        cliente = _get_client().v1.customers.create(
+            params={"name": nome, "metadata": {"usuario_id": str(usuario_id)}}
+        )
+    except stripe.StripeError as erro:
+        raise PagamentoIndisponivel("Provedor de pagamento indisponível no momento") from erro
+    return cliente.id
+
+
+def criar_portal(customer_id: str) -> str:
+    """Sessão do portal do cliente (Billing Portal): página do Stripe onde a
+    pessoa troca de plano, atualiza o cartão e cancela. O que ela fizer lá
+    chega aqui pelos webhooks — o portal não fala com o catálogo."""
+    settings = get_settings()
+    try:
+        sessao = _get_client().v1.billing_portal.sessions.create(
+            params={"customer": customer_id, "return_url": f"{settings.catalog_public_url}/app/planos?portal=voltou"}
+        )
+    except stripe.StripeError as erro:
+        raise PagamentoIndisponivel("Provedor de pagamento indisponível no momento") from erro
+    return sessao.url
+
+
+def criar_checkout(usuario_id: int, plano: str, customer_id: str) -> str:
     """Cria a Checkout Session da assinatura do plano e devolve a URL da
     página de pagamento — hospedada pelo Stripe, é lá (e não aqui) que o
     cartão é digitado.
@@ -59,6 +104,7 @@ def criar_checkout(usuario_id: int, plano: str) -> str:
         sessao = client.v1.checkout.sessions.create(
             params={
                 "mode": "subscription",
+                "customer": customer_id,
                 "line_items": [{"price": preco, "quantity": 1}],
                 "client_reference_id": str(usuario_id),
                 "metadata": metadata,

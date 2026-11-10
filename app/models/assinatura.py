@@ -1,6 +1,6 @@
 from datetime import datetime
 
-from sqlalchemy import Boolean, DateTime, String, false, func
+from sqlalchemy import Boolean, DateTime, Integer, String, false, func
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.database import Base, utc_now_naive
@@ -32,6 +32,24 @@ class Assinatura(Base):
     stripe_subscription_id: Mapped[str | None] = mapped_column(
         String(255), unique=True, nullable=True
     )
+    # Atividade 11 (assinatura recorrente): o status como o Stripe diz
+    # (active, past_due, canceled...) e o valor mensal, pro MRR do admin.
+    # `premium` continua sendo o que libera o plano: só True com status pagante.
+    status: Mapped[str | None] = mapped_column(String(30), nullable=True)
+    valor_mensal_centavos: Mapped[int | None] = mapped_column(Integer, nullable=True)
     atualizado_em: Mapped[datetime] = mapped_column(
         DateTime, default=utc_now_naive, onupdate=utc_now_naive, server_default=func.now()
     )
+
+
+class EventoStripe(Base):
+    """Eventos do webhook já processados. O Stripe entrega "pelo menos uma
+    vez": o mesmo evento pode chegar de novo (reenvio, timeout). O ID dele
+    fica aqui e a segunda entrega é ignorada — além de cada tratamento já
+    ser idempotente, isso evita efeito colateral repetido (e-mail, log)."""
+
+    __tablename__ = "eventos_stripe"
+
+    id: Mapped[str] = mapped_column(String(255), primary_key=True)
+    tipo: Mapped[str] = mapped_column(String(100), nullable=False)
+    recebido_em: Mapped[datetime] = mapped_column(DateTime, default=utc_now_naive, nullable=False)

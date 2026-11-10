@@ -38,7 +38,7 @@ def assinar(corpo: bytes, segredo: str = SEGREDO, timestamp: int | None = None) 
 def evento_checkout(usuario_id: int = 42, plano: str = "professor_pro", subscription: str = "sub_test_1") -> bytes:
     return json.dumps(
         {
-            "id": "evt_test_1",
+            "id": f"evt_checkout_{usuario_id}_{subscription}",
             "type": "checkout.session.completed",
             "data": {
                 "object": {

@@ -242,6 +242,12 @@ Escada de papéis — cada um inclui os anteriores: `professor` (1) < `professor
 | P4 | Voltar do checkout com `?checkout=sucesso` não ativa nada: só o webhook ativa plano. | `app/routers/premium.py` |
 | P5 | Webhook sem `Stripe-Signature` válida responde `400` e não toca no banco. | `app/services/pagamentos.py` |
 | P6 | `checkout.session.completed` válido troca o papel no auth-service e só depois grava a assinatura; se a troca falha, `502` e o Stripe reenvia. O mesmo evento duas vezes dá o mesmo resultado. | `app/routers/premium.py` |
+| P6b | O mesmo evento (mesmo `id`) entregue de novo responde `200` com `repetido: true` sem processar; só eventos tratados com sucesso entram em `eventos_stripe`. | `app/routers/premium.py`, `app/models/assinatura.py` |
+| P6c | O checkout cria o customer do Stripe uma vez por usuário e o guarda antes do pagamento; evento que chega antes do `checkout.session.completed` acha o usuário pelo customer (só em linha ainda sem assinatura, para um evento da assinatura antiga não mexer na nova). | `app/routers/premium.py` |
+| P6d | `customer.subscription.updated` decide o plano pelo preço da assinatura (a troca no portal muda o preço, não o metadata). Status fora de `active`/`trialing` volta para o Free; voltar para `active` devolve o plano. | `app/routers/premium.py`, `app/services/pagamentos.py` |
+| P6e | `invoice.payment_failed` marca `past_due`, volta para o Free, pede ao auth-service o e-mail de aviso (melhor esforço) e o site mostra o alerta em todas as telas. Com pagamento pendente, o checkout dá `409` (regulariza no portal). | `app/routers/premium.py`, `auth-service/app/routers/internal.py` |
+| P6f | `POST /premium/portal` abre o portal do cliente do Stripe; quem não tem assinatura recebe `409`. | `app/routers/premium.py` |
+| P6g | `GET /admin/resumo` (só admin) soma o MRR só das assinaturas `active`/`trialing`, em centavos, e conta usuários por papel no auth-service. | `app/routers/admin.py` |
 | P7 | `customer.subscription.deleted` de uma assinatura conhecida volta o usuário para `professor`. Admin nunca é rebaixado por plano. | `app/routers/premium.py`, `auth-service/app/routers/internal.py` |
 | P8 | Nenhum dado de cartão passa pelo backend; só os IDs `cus_` e `sub_`. | `app/models/assinatura.py` |
 
