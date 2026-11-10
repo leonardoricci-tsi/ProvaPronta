@@ -250,6 +250,11 @@ def _atualizar_assinatura(db: Session, assinatura_stripe: dict) -> None:
     assinatura = _assinatura_do_evento(db, assinatura_stripe.get("id"), assinatura_stripe.get("customer"))
     if assinatura is None:
         return
+    if assinatura.status == "canceled" and assinatura.stripe_subscription_id == assinatura_stripe.get("id"):
+        # Cancelada é estado final no Stripe. Os eventos não chegam em
+        # ordem garantida: um `updated` (ainda "active") que chega DEPOIS do
+        # `deleted` — ou um reenvio dele — não pode reativar o plano.
+        return
     price_id, valor = _valor_mensal(assinatura_stripe)
     plano = pagamentos.plano_do_preco(price_id) or (assinatura_stripe.get("metadata") or {}).get("plano")
     status_stripe = assinatura_stripe.get("status")

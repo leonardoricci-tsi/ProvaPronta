@@ -45,6 +45,29 @@ def plano_do_preco(price_id: str | None) -> str | None:
     return precos.get(price_id)
 
 
+_valores_dos_planos: dict[str, int] = {}
+
+
+def valor_mensal_do_plano(plano: str | None) -> int | None:
+    """Valor mensal (centavos) do preço do plano no Stripe, lido uma vez e
+    guardado em memória. Serve pro MRR das assinaturas antigas (atividade 7),
+    gravadas antes de o valor ir pro banco. None se o Stripe não responder."""
+    if plano not in PLANOS_PAGOS:
+        return None
+    if plano not in _valores_dos_planos:
+        preco = _preco_do_plano(plano)
+        if not preco:
+            return None
+        try:
+            valor = _get_client().v1.prices.retrieve(preco).unit_amount
+        except (stripe.StripeError, PagamentoNaoConfigurado):
+            return None
+        if valor is None:
+            return None
+        _valores_dos_planos[plano] = valor
+    return _valores_dos_planos[plano]
+
+
 def _get_client() -> stripe.StripeClient:
     global _client
     settings = get_settings()

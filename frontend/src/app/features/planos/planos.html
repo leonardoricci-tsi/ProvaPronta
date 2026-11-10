@@ -55,15 +55,17 @@
 }
 
 @if (podeGerenciar) {
-  <section class="cartao linha" style="justify-content: space-between; flex-wrap: wrap; gap: 12px" aria-label="Sua assinatura">
-    <div class="pilha" style="gap: 4px">
-      <strong>Sua assinatura</strong>
-      <span class="suave">Troque de plano, atualize o cartão ou cancele no portal seguro do Stripe.</span>
+  <section class="cartao" aria-label="Sua assinatura">
+    <div class="cartao-cab">
+      <div class="pilha" style="gap: 4px">
+        <strong>Sua assinatura</strong>
+        <span class="suave">Troque de plano, atualize o cartão ou cancele no portal seguro do Stripe.</span>
+      </div>
+      <button class="btn btn-primario" type="button" [disabled]="abrindo() !== null" (click)="gerenciar()">
+        <app-icone nome="trocar" />
+        {{ abrindo() === 'portal' ? 'Abrindo…' : (pagamentoPendente ? 'Atualizar pagamento' : 'Gerenciar assinatura') }}
+      </button>
     </div>
-    <button class="btn btn-primario" type="button" [disabled]="abrindo() !== null" (click)="gerenciar()">
-      <app-icone nome="trocar" />
-      {{ abrindo() === 'portal' ? 'Abrindo…' : (pagamentoPendente ? 'Atualizar pagamento' : 'Gerenciar assinatura') }}
-    </button>
   </section>
 }
 

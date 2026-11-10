@@ -76,7 +76,14 @@ def resumo(
         assinaturas_ativas=len(ativas),
         assinaturas_ativas_por_plano=dict(Counter(a.plano for a in ativas)),
         inadimplentes=inadimplentes,
-        mrr_centavos=sum(a.valor_mensal_centavos or 0 for a in ativas),
+        # Assinatura antiga (atividade 7) não tem o valor no banco: usa o
+        # preço atual do plano no Stripe.
+        mrr_centavos=sum(
+            a.valor_mensal_centavos
+            if a.valor_mensal_centavos is not None
+            else (pagamentos.valor_mensal_do_plano(a.plano) or 0)
+            for a in ativas
+        ),
         eventos_recentes=eventos,
     )
 

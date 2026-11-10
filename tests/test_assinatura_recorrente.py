@@ -174,6 +174,19 @@ def test_evento_que_falhou_nao_e_marcado_e_o_reenvio_processa(client, db_session
     assert db_session.get(Assinatura, 50).premium is False
 
 
+def test_update_atrasado_depois_do_cancelamento_nao_reativa(client, db_session, auth_service):
+    """O portal manda `deleted` e `updated` quase juntos e a ordem não é
+    garantida: um `updated` ainda "active" chegando depois não reativa."""
+    pro_ativo(db_session)
+    mandar(client, evento("customer.subscription.deleted", assinatura_stripe(status="canceled")))
+
+    mandar(client, evento("customer.subscription.updated", assinatura_stripe(status="active")))
+
+    assinatura = db_session.get(Assinatura, 50)
+    assert (assinatura.premium, assinatura.status) == (False, "canceled")
+    assert [papel for _, papel in papeis_definidos(auth_service)] == ["professor"]
+
+
 def test_update_da_assinatura_antiga_depois_de_trocar_de_plano_nao_mexe_na_nova(client, db_session, auth_service):
     """Pro -> Escola pelo checkout: a assinatura antiga é cancelada e o
     Stripe manda o update dela; a linha já aponta pra nova e não muda."""
@@ -238,6 +251,18 @@ def test_resumo_do_admin_com_usuarios_por_plano_e_mrr(client, db_session, usuari
     # Só as ativas entram no MRR: R$ 29,90 + R$ 199,90.
     assert corpo["mrr_centavos"] == 22980
     assert corpo["eventos_recentes"][0]["acao"] == "plano_ativado:professor_pro"
+
+
+def test_mrr_usa_o_preco_do_plano_para_assinatura_antiga_sem_valor(client, db_session, usuarios_e_logs, monkeypatch):
+    from app.services import pagamentos
+
+    monkeypatch.setattr(pagamentos, "_valores_dos_planos", {"professor_pro": 2990})
+    db_session.add(Assinatura(usuario_id=8, premium=True, plano="professor_pro", status="active"))
+    db_session.commit()
+
+    corpo = client.get("/admin/resumo", headers=auth_headers(criar_token(role="admin"))).json()
+
+    assert corpo["mrr_centavos"] == 2990
 
 
 @pytest.mark.parametrize("papel", ["professor", "professor_pro", "coordenador"])
