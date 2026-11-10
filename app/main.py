@@ -11,6 +11,7 @@ from app.routers import (
     auth,
     biblioteca,
     coordenacao,
+    correcao,
     health,
     premium,
     profiles,
@@ -51,6 +52,7 @@ app.include_router(profiles.router)
 app.include_router(premium.router)
 app.include_router(turmas.router)
 app.include_router(provas.router)
+app.include_router(correcao.router)
 app.include_router(coordenacao.router)
 app.include_router(biblioteca.router)
 # Antes do mount de "/": senão o StaticFiles engole o caminho da foto.

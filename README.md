@@ -55,9 +55,11 @@ Tema claro e escuro (segue o sistema; troca no menu do avatar) e layout que func
 
 **Gerar questões do PDF (Pro):** o professor escolhe a fonte — **uma pasta inteira** da biblioteca, **um PDF**, **vários PDFs** (de pastas diferentes) e/ou o PDF anexado à prova. A API extrai o texto (`pypdf`), reparte o espaço entre os arquivos para todos entrarem, e pede a um modelo de linguagem questões de múltipla escolha com gabarito e assunto. Elas voltam como **sugestão** para o editor — nada é gravado até o professor revisar e salvar. O provedor é configurável por variável de ambiente (`LLM_API_KEY`, `LLM_BASE_URL`, `LLM_MODEL`, API no formato da OpenAI): hoje o Groq; trocar pelo Claude é só configuração.
 
-**Folhas de resposta e caderno em PDF:** no detalhe da prova, "Folhas de resposta" gera **uma página por aluno da turma**, com o nome e o nº de chamada, um **QR code** com prova + aluno (`PP1:{prova}:{aluno}`), a grade de bolinhas A–E de cada questão e **4 marcas pretas nos cantos** para endireitar a foto. "Caderno da prova" gera as questões para imprimir, sem o gabarito. Os dois são gerados no servidor (`reportlab`), e a posição de cada marca e bolinha fica num só lugar ([`app/services/folha_resposta.py`](app/services/folha_resposta.py)), que a correção por foto vai usar para ler a folha.
+**Folhas de resposta e caderno em PDF:** no detalhe da prova, "Folhas de resposta" gera **uma página por aluno da turma**, com o nome e o nº de chamada, um **QR code** assinado com prova + aluno (`PP2:{prova}:{aluno}:{assinatura}`), a grade de bolinhas A–E de cada questão e **4 marcas pretas nos cantos** para endireitar a foto. "Caderno da prova" gera as questões para imprimir, sem o gabarito. Os dois são gerados no servidor (`reportlab`), e a posição de cada marca e bolinha fica num só lugar ([`app/services/folha_resposta.py`](app/services/folha_resposta.py)), que a correção por foto usa para ler a folha.
 
-**Roadmap** (no plano de negócio, ainda não construído): correção por foto do gabarito (a folha já está pronta) e banco de questões.
+**Correção por foto (leitura):** `POST /provas/{id}/correcao/leitura` recebe a foto da folha tirada pelo celular. Com **OpenCV**, o servidor acha as 4 marcas, endireita a perspectiva (aceita foto torta, com sombra, deitada ou de cabeça para baixo), lê o QR assinado (que diz o aluno) e mede cada bolinha. Devolve as respostas lidas, os acertos e a **nota recomendada**, com as questões em branco, duplas ou mal pintadas na lista para o professor conferir. Ainda não grava a nota: a tela de revisão e as notas da turma são a próxima parte.
+
+**Roadmap** (no plano de negócio, ainda não construído): tela de revisão da correção por foto com as notas da turma, e banco de questões.
 
 ## 2. Requisitos da atividade 10
 

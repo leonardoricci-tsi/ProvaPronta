@@ -7,6 +7,8 @@ correção por foto vai usar exatamente as mesmas posições para ler a folha:
 mudar o desenho é mudar a leitura, no mesmo lugar.
 """
 
+import hashlib
+import hmac
 import io
 from dataclasses import dataclass
 
@@ -19,6 +21,8 @@ from reportlab.lib.styles import ParagraphStyle
 from reportlab.lib.units import mm
 from reportlab.pdfgen.canvas import Canvas
 from reportlab.platypus import KeepTogether, Paragraph, SimpleDocTemplate, Spacer
+
+from app.config import get_settings
 
 LARGURA, ALTURA = A4  # 595 × 842 pontos (origem no canto inferior esquerdo)
 LETRAS = "ABCDE"
@@ -45,22 +49,36 @@ BOLINHA_RAIO = 2.4 * mm
 DESLOCAMENTO_1A_BOLINHA = 9 * mm  # do número da questão até o centro da A
 ESPACO_ENTRE_BOLINHAS = 6.6 * mm
 
-# Conteúdo do QR: versão do formato + prova + aluno. Curto de propósito
-# (QR menor, leitura mais fácil). Quem confere o dono é o servidor, na hora
-# de corrigir — o QR só diz "de quem é esta folha".
-PREFIXO_QR = "PP1"
+# Conteúdo do QR: versão do formato + prova + aluno + assinatura. A
+# assinatura (HMAC com o segredo do servidor, cortada em 12 hex) impede montar
+# um QR "de outro aluno" à mão: só o servidor sabe gerá-la. Curto de propósito
+# (QR menor, leitura mais fácil). O dono da prova continua sendo conferido na
+# correção — o QR só diz "de quem é esta folha". PP1 era o formato sem
+# assinatura (folhas impressas antes da correção por foto): não vale mais.
+PREFIXO_QR = "PP2"
+TAMANHO_ASSINATURA = 12
+
+
+def _assinatura(prova_id: int, aluno_id: int) -> str:
+    chave = ("folha-resposta:" + get_settings().jwt_secret).encode()
+    mensagem = f"{PREFIXO_QR}:{prova_id}:{aluno_id}".encode()
+    return hmac.new(chave, mensagem, hashlib.sha256).hexdigest()[:TAMANHO_ASSINATURA]
 
 
 def conteudo_qr(prova_id: int, aluno_id: int) -> str:
-    return f"{PREFIXO_QR}:{prova_id}:{aluno_id}"
+    return f"{PREFIXO_QR}:{prova_id}:{aluno_id}:{_assinatura(prova_id, aluno_id)}"
 
 
 def ler_conteudo_qr(texto: str) -> tuple[int, int] | None:
-    """(prova_id, aluno_id) de um QR desta folha, ou None se não for nosso."""
+    """(prova_id, aluno_id) de um QR desta folha, ou None se não for nosso
+    (outro formato, folha antiga sem assinatura ou assinatura que não bate)."""
     partes = texto.strip().split(":")
-    if len(partes) != 3 or partes[0] != PREFIXO_QR or not all(p.isdigit() for p in partes[1:]):
+    if len(partes) != 4 or partes[0] != PREFIXO_QR or not all(p.isdigit() for p in partes[1:3]):
         return None
-    return int(partes[1]), int(partes[2])
+    prova_id, aluno_id = int(partes[1]), int(partes[2])
+    if not hmac.compare_digest(partes[3], _assinatura(prova_id, aluno_id)):
+        return None
+    return prova_id, aluno_id
 
 
 def centros_das_marcas() -> list[tuple[float, float]]:

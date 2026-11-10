@@ -17,6 +17,9 @@ boto3==1.43.103
 pypdf==5.1.0
 # Folha de respostas (com QR code) e caderno da prova em PDF
 reportlab==4.2.5
+# Correção por foto: acha as marcas, endireita a folha, lê o QR e as bolinhas
+opencv-python-headless==4.10.0.84
+numpy==2.2.1
 # Plano premium (atividade 7): checkout e webhook do Stripe
 stripe==16.0.0
 

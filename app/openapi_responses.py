@@ -142,6 +142,17 @@ RESP_409_FOLHAS = {
     )
 }
 
+RESP_ERROS_LEITURA = {
+    409: _erro("A prova ainda não tem questões", "A prova ainda não tem questões"),
+    413: _erro("Foto acima de 10 MB", "Foto acima de 10 MB"),
+    415: _erro("Arquivo não é uma imagem (conferido pelo conteúdo)", "Envie uma foto (JPEG, PNG ou WebP)"),
+    422: _erro(
+        "Folha não encontrada na foto (marcas dos cantos), QR ilegível ou inválido, folha de outra prova "
+        "ou aluno que saiu da turma",
+        "Não encontrei as 4 marcas pretas dos cantos. Fotografe a folha inteira, de cima, sem cortar os cantos",
+    ),
+}
+
 RESP_ERROS_MATERIAL = {
     413: _erro("Arquivo acima do tamanho máximo (10 MB)", "PDF acima de 10 MB"),
     415: _erro("Arquivo não é um PDF (conferido pelo conteúdo, não pela extensão)", "Envie um arquivo PDF"),

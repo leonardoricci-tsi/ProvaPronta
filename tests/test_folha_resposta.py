@@ -86,10 +86,22 @@ def test_texto_do_professor_nao_quebra_o_caderno(client, auth_service):
     assert "Se a < b e b > c, então <b>?</b> & mais" in " ".join(paginas(resposta.content))
 
 
-def test_conteudo_do_qr_vai_e_volta():
-    assert fr.conteudo_qr(12, 345) == "PP1:12:345"
-    assert fr.ler_conteudo_qr("PP1:12:345") == (12, 345)
-    for invalido in ("PP2:12:345", "PP1:12", "PP1:a:3", "https://exemplo.com", ""):
+def test_conteudo_do_qr_vai_e_volta_e_e_assinado():
+    conteudo = fr.conteudo_qr(12, 345)
+    assert conteudo.startswith("PP2:12:345:") and len(conteudo.split(":")[3]) == 12
+    assert fr.ler_conteudo_qr(conteudo) == (12, 345)
+    assinatura = conteudo.split(":")[3]
+    # Trocar o aluno (ou a prova) sem saber o segredo não passa.
+    for invalido in (
+        f"PP2:12:346:{assinatura}",
+        f"PP2:13:345:{assinatura}",
+        "PP2:12:345:000000000000",
+        "PP1:12:345",  # folha antiga, sem assinatura
+        "PP2:12:345",
+        "PP2:a:3:" + assinatura,
+        "https://exemplo.com",
+        "",
+    ):
         assert fr.ler_conteudo_qr(invalido) is None
 
 
