@@ -7,6 +7,8 @@
 
 > Projeto da disciplina ISW055 (Introdução à Computação em Nuvem), proposto pelo professor [@siriani](https://github.com/siriani) — [github.com/siriani](https://github.com/siriani).
 >
+> **P2 — Relatório consolidado (arquitetura e atividades 7 a 11):** [docs/P2_ISW055_Leonardo_Oliveira_assinado.pdf](docs/P2_ISW055_Leonardo_Oliveira_assinado.pdf) (fonte em Typst: [docs/P2_ISW055_Leonardo_Oliveira.typ](docs/P2_ISW055_Leonardo_Oliveira.typ)).
+>
 > **Atividade 10 — "Seu negócio no ar":** o negócio do [plano de negócio](docs/plano-de-negocio.md) (atividade 9) rodando na mesma stack do Portainer, com o mesmo subdomínio e os mesmos limites de 1 GB. Este repositório é um espelho, com todo o histórico, do [repositório das atividades 1 a 8](https://github.com/leonardoricci-tsi/api_filme_); a arquitetura foi reaproveitada inteira e o domínio é novo.
 
 ### Conta de demonstração
